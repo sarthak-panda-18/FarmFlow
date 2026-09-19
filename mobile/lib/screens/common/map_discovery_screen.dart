@@ -171,6 +171,7 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
       final marketRes = await _apiService.getNearbyMarkets(
         latitude: _myLat,
         longitude: _myLng,
+        maxDistanceKm: _selectedRadius,
       );
 
       if (mounted) {
@@ -513,8 +514,28 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
     }
 
     if (_nearbyMarkets.isEmpty) {
-      return const Center(
-        child: Text('No APMC markets found for this region.', style: TextStyle(color: AppColors.textSecondary)),
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppConstants.paddingLarge),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.storefront_outlined, size: 56, color: Colors.grey[400]),
+              const SizedBox(height: 12),
+              Text(
+                'No APMC markets within ${_selectedRadius.toInt()} km',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Try selecting 25 km, 50 km, or 100 km above to discover nearby APMC mandis in neighboring districts (e.g. Guntur, Krishna).',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -526,6 +547,9 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
         final marketName = m['market'] ?? 'APMC Market';
         final district = m['district'] ?? '';
         final state = m['state'] ?? '';
+        final dist = (m['distanceKm'] as num?)?.toDouble();
+        final lat = (m['latitude'] as num?)?.toDouble();
+        final lng = (m['longitude'] as num?)?.toDouble();
         final sampleComm = m['sampleCommodity'] ?? '';
         final samplePrice = (m['samplePrice'] as num?)?.toDouble() ?? 0.0;
         final date = m['latestDate'] ?? '';
@@ -542,28 +566,56 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Color(0xFFDCFCE7),
-                      child: Icon(Icons.storefront, color: AppColors.primary, size: 20),
-                    ),
-                    const SizedBox(width: 10),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          Text(
-                            '$marketName APMC Mandi',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          const CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Color(0xFFDCFCE7),
+                            child: Icon(Icons.storefront, color: AppColors.primary, size: 20),
                           ),
-                          Text(
-                            '$district, $state',
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$marketName APMC Mandi',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '$district, $state',
+                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
+                    if (dist != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.near_me, size: 12, color: Color(0xFF2563EB)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${dist.toStringAsFixed(1)} km',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
                 if (sampleComm.isNotEmpty) ...[
@@ -583,12 +635,16 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      final queryLabel = '$marketName Mandi, $district, $state';
-                      _locationService.openGoogleMaps(
-                        latitude: _myLat ?? 20.5937,
-                        longitude: _myLng ?? 78.9629,
-                        label: queryLabel,
-                      );
+                      final queryLabel = '$marketName APMC Mandi, $district, $state';
+                      if (lat != null && lng != null) {
+                        _openGoogleMapsForCoordinate(lat, lng, queryLabel);
+                      } else {
+                        _locationService.openGoogleMaps(
+                          latitude: _myLat ?? 16.5062,
+                          longitude: _myLng ?? 80.6480,
+                          label: queryLabel,
+                        );
+                      }
                     },
                     icon: const Icon(Icons.directions, size: 18),
                     label: const Text('View Mandi on Google Maps'),

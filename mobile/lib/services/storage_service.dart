@@ -42,6 +42,21 @@ class StorageService {
     }
   }
 
+  /// Save custom server URL
+  Future<void> saveServerUrl(String url) async {
+    await _storage.write(key: AppConstants.keyServerUrl, value: url.trim());
+  }
+
+  /// Retrieve custom server URL
+  Future<String?> getServerUrl() async {
+    return await _storage.read(key: AppConstants.keyServerUrl);
+  }
+
+  /// Delete saved server URL
+  Future<void> deleteServerUrl() async {
+    await _storage.delete(key: AppConstants.keyServerUrl);
+  }
+
   /// Clear all stored credentials and session data
   Future<void> clearAll() async {
     await _storage.deleteAll();

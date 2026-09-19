@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../config/app_config.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/server_config_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -59,6 +61,18 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _openServerConfig(AuthProvider authProvider) {
+    ServerConfigDialog.show(
+      context,
+      authProvider.apiService,
+      onSaved: () {
+        setState(() {
+          _inlineError = null;
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -71,6 +85,13 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_ethernet),
+            tooltip: 'Server Connection Settings',
+            onPressed: () => _openServerConfig(authProvider),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(
@@ -113,14 +134,31 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
                         border: Border.all(color: AppColors.error),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Icon(Icons.error_outline, color: AppColors.error),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _inlineError!,
-                              style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.error_outline, color: AppColors.error),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _inlineError!,
+                                  style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: () => _openServerConfig(authProvider),
+                            icon: const Icon(Icons.settings, size: 16),
+                            label: const Text('Configure Server / Fix Connection', style: TextStyle(fontSize: 12)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.error,
+                              side: const BorderSide(color: AppColors.error),
+                              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
                             ),
                           ),
                         ],
@@ -194,7 +232,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -211,6 +249,39 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text('Register'),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Current Server Info & Tap to configure
+                  Center(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => _openServerConfig(authProvider),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.primaryLight,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Server: ${AppConfig.apiBaseUrl}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

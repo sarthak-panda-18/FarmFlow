@@ -15,6 +15,17 @@ void main() async {
 
   // Initialize service dependencies
   final storageService = StorageService();
+
+  // Load custom server URL if previously configured by user
+  try {
+    final savedServerUrl = await storageService.getServerUrl();
+    if (savedServerUrl != null && savedServerUrl.isNotEmpty) {
+      AppConfig.setCustomBaseUrl(savedServerUrl);
+    }
+  } catch (_) {
+    // Fall back to default
+  }
+
   final apiService = ApiService(storageService: storageService);
 
   runApp(

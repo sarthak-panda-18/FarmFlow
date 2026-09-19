@@ -44,4 +44,5 @@ class AppConstants {
   // Storage Keys
   static const String keyAuthToken = 'auth_token';
   static const String keyUserData = 'user_data';
+  static const String keyServerUrl = 'api_server_url';
 }

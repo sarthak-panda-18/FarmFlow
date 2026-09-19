@@ -38,6 +38,91 @@ class ApiService {
     );
   }
 
+  /// Current base URL in use by Dio
+  String get baseUrl => _dio.options.baseUrl;
+
+  /// Update the API Base URL dynamically at runtime
+  void updateBaseUrl(String newUrl) {
+    AppConfig.setCustomBaseUrl(newUrl);
+    _dio.options.baseUrl = AppConfig.apiBaseUrl;
+    _storageService.saveServerUrl(AppConfig.apiBaseUrl);
+  }
+
+  /// Test connectivity to a specific server URL or current base URL
+  Future<Map<String, dynamic>> testConnection([String? targetUrl]) async {
+    String url = targetUrl ?? _dio.options.baseUrl;
+    String cleanUrl = url.trim();
+    if (cleanUrl.endsWith('/')) {
+      cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
+    }
+    if (!cleanUrl.endsWith('/api')) {
+      cleanUrl = '$cleanUrl/api';
+    }
+
+    final testDio = Dio(
+      BaseOptions(
+        baseUrl: cleanUrl,
+        connectTimeout: const Duration(seconds: 4),
+        receiveTimeout: const Duration(seconds: 4),
+      ),
+    );
+
+    final stopwatch = Stopwatch()..start();
+    try {
+      final res = await testDio.get('/health');
+      stopwatch.stop();
+      if (res.statusCode == 200 && res.data != null) {
+        final dbStatus = res.data['database'] ?? 'unknown';
+        return {
+          'success': true,
+          'latencyMs': stopwatch.elapsedMilliseconds,
+          'database': dbStatus,
+          'url': cleanUrl,
+          'message': 'Connected successfully! ($dbStatus)',
+        };
+      } else {
+        return {
+          'success': false,
+          'url': cleanUrl,
+          'message': 'Server returned unexpected status: ${res.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      stopwatch.stop();
+      String err = 'Connection failed';
+      if (e.type == DioExceptionType.connectionTimeout) {
+        err = 'Connection timed out';
+      } else if (e.type == DioExceptionType.connectionError) {
+        err = 'Connection refused / unreachable';
+      } else if (e.response != null) {
+        err = 'HTTP ${e.response?.statusCode} error';
+      }
+      return {
+        'success': false,
+        'url': cleanUrl,
+        'message': '$err: ${e.message ?? ""}',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'url': cleanUrl,
+        'message': e.toString(),
+      };
+    }
+  }
+
+  /// Auto-probe candidate URLs to find an active server
+  Future<String?> autoDetectServer() async {
+    for (final candidate in AppConfig.candidateUrls) {
+      final res = await testConnection(candidate);
+      if (res['success'] == true) {
+        updateBaseUrl(candidate);
+        return candidate;
+      }
+    }
+    return null;
+  }
+
   // Auth APIs
   Future<Response> login(String identifier, String password) async {
     final data = <String, dynamic>{'password': password};
@@ -363,13 +448,15 @@ class ApiService {
   Future<Response> getNearbyMarkets({
     double? latitude,
     double? longitude,
+    double? maxDistanceKm,
     String? state,
     String? district,
-    int limit = 20,
+    int limit = 30,
   }) async {
     final params = <String, dynamic>{'limit': limit};
     if (latitude != null) params['latitude'] = latitude;
     if (longitude != null) params['longitude'] = longitude;
+    if (maxDistanceKm != null) params['maxDistanceKm'] = maxDistanceKm;
     if (state != null && state.isNotEmpty) params['state'] = state;
     if (district != null && district.isNotEmpty) params['district'] = district;
 
@@ -740,17 +827,17 @@ class ApiService {
 
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
-        return Exception('No connection to the server. Connection timed out.');
+        return Exception('Cannot connect to server (${_dio.options.baseUrl}). Connection timed out.');
       case DioExceptionType.receiveTimeout:
         return Exception('Server response timed out. Please try again.');
       case DioExceptionType.sendTimeout:
         return Exception('Request sending timed out.');
       case DioExceptionType.connectionError:
-        return Exception('Server is unavailable. Please check backend connection.');
+        return Exception('Server is unreachable at ${_dio.options.baseUrl}. Please check server settings.');
       case DioExceptionType.cancel:
         return Exception('Request was cancelled.');
       default:
-        return Exception('Network error occurred: ${e.message ?? "Unknown error"}');
+        return Exception('Network error: ${e.message ?? "Unknown error"}');
     }
   }
 }

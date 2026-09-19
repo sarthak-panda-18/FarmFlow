@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "adb:reverse": "adb reverse tcp:5000 tcp:5000",
     "seed": "node src/scripts/seed.js",
     "import-dataset": "node src/scripts/importMarketPrices.js"
   },

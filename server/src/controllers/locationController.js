@@ -8,6 +8,7 @@ const {
   buildGeoJsonPoint,
   buildGoogleMapsUrl,
 } = require('../utils/geoUtils');
+const { getMarketCoordinates } = require('../utils/districtCoordinates');
 const { buildCommodityFilter } = require('../utils/commodityCategoryMapping');
 
 /**
@@ -373,13 +374,13 @@ const getNearbyBuyers = async (req, res, next) => {
 };
 
 /**
- * @desc    Get nearby APMC / AGMARKNET agricultural markets
+ * @desc    Get nearby APMC / AGMARKNET agricultural markets sorted by distance
  * @route   GET /api/location/nearby-markets
  * @access  Public / Authenticated
  */
 const getNearbyMarkets = async (req, res, next) => {
   try {
-    let { latitude, longitude, state, district, limit = 20 } = req.query;
+    let { latitude, longitude, maxDistanceKm, state, district, commodity, limit = 50 } = req.query;
 
     if (!latitude || !longitude) {
       if (req.user?.id) {
@@ -400,8 +401,16 @@ const getNearbyMarkets = async (req, res, next) => {
     if (district && district.trim()) {
       filter.district = { $regex: new RegExp(`^${district.trim()}$`, 'i') };
     }
+    if (commodity && commodity.trim()) {
+      const commFilter = buildCommodityFilter(commodity.trim());
+      if (commFilter) Object.assign(filter, commFilter);
+    }
 
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
+    const hasUserCoords = isValidCoordinates(latitude, longitude);
+    const userLat = hasUserCoords ? Number(latitude) : null;
+    const userLng = hasUserCoords ? Number(longitude) : null;
+    const maxDist = maxDistanceKm ? Number(maxDistanceKm) : null;
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
 
     // Get distinct markets from dataset with latest price sample
     const markets = await MarketPrice.aggregate([
@@ -415,22 +424,29 @@ const getNearbyMarkets = async (req, res, next) => {
           latestDate: { $first: '$date' },
         },
       },
-      { $limit: limitNum },
     ]);
 
-    const formatted = markets.map((m) => {
+    let formatted = markets.map((m) => {
       const marketName = m._id.market;
       const districtName = m._id.district;
       const stateName = m._id.state;
 
-      // Google maps search query for market location
+      const coords = getMarketCoordinates(stateName, districtName, marketName);
+      let distanceKm = null;
+      if (hasUserCoords) {
+        distanceKm = calculateHaversineDistance(userLat, userLng, coords.lat, coords.lng);
+      }
+
       const queryLabel = `${marketName} Mandi, ${districtName}, ${stateName}`;
-      const searchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryLabel)}`;
+      const searchUrl = buildGoogleMapsUrl(coords.lat, coords.lng, queryLabel);
 
       return {
         market: marketName,
         district: districtName,
         state: stateName,
+        latitude: coords.lat,
+        longitude: coords.lng,
+        distanceKm,
         sampleCommodity: m.sampleCommodity,
         samplePrice: m.samplePrice,
         latestDate: m.latestDate ? m.latestDate.toISOString().split('T')[0] : null,
@@ -438,9 +454,31 @@ const getNearbyMarkets = async (req, res, next) => {
       };
     });
 
+    if (hasUserCoords) {
+      // Sort by distance ascending
+      formatted.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+
+      // Filter by max distance if requested
+      if (maxDist && maxDist > 0) {
+        const withinRadius = formatted.filter((m) => m.distanceKm !== null && m.distanceKm <= maxDist);
+        if (withinRadius.length > 0) {
+          formatted = withinRadius.slice(0, limitNum);
+        } else {
+          // If no mandis within tight radius (e.g. 10km), return empty list so UI prompts user to expand radius
+          formatted = [];
+        }
+      } else {
+        formatted = formatted.slice(0, limitNum);
+      }
+    } else {
+      formatted = formatted.slice(0, limitNum);
+    }
+
     res.status(200).json({
       success: true,
       count: formatted.length,
+      userLocation: hasUserCoords ? { latitude: userLat, longitude: userLng } : null,
+      maxDistanceKm: maxDist,
       data: formatted,
     });
   } catch (error) {

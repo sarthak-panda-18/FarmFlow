@@ -5,6 +5,7 @@ import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/server_config_dialog.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -74,6 +75,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  void _openServerConfig(AuthProvider authProvider) {
+    ServerConfigDialog.show(
+      context,
+      authProvider.apiService,
+      onSaved: () {
+        setState(() {
+          _inlineError = null;
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -85,6 +98,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         title: const Text(AppStrings.registerTitle),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_ethernet),
+            tooltip: 'Server Connection Settings',
+            onPressed: () => _openServerConfig(authProvider),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -109,14 +129,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(AppConstants.borderRadius),
                       border: Border.all(color: AppColors.error),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Icon(Icons.error_outline, color: AppColors.error),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _inlineError!,
-                            style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.error_outline, color: AppColors.error),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _inlineError!,
+                                style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () => _openServerConfig(authProvider),
+                          icon: const Icon(Icons.settings, size: 16),
+                          label: const Text('Configure Server / Fix Connection', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.error,
+                            side: const BorderSide(color: AppColors.error),
+                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
                           ),
                         ),
                       ],
