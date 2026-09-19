@@ -21,6 +21,7 @@ const opportunityRoutes = require('./routes/opportunityRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
 const locationRoutes = require('./routes/locationRoutes');
 const matchRoutes = require('./routes/matchRoutes');
+const dealRoutes = require('./routes/dealRoutes');
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/matches', matchRoutes);
+app.use('/api/deals', dealRoutes);
 
 // Error Handling Middleware
 app.use(notFoundHandler);

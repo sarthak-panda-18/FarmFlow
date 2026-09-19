@@ -474,17 +474,123 @@ class ApiService {
     return await post('/opportunities/$id/reject');
   }
 
+  Future<Response> cancelOpportunity(String id) async {
+    return await patch('/opportunities/$id/cancel');
+  }
+
   Future<Response> completeOpportunity(String id) async {
     return await post('/opportunities/$id/complete');
   }
 
   // Notifications APIs
-  Future<Response> getNotifications({int page = 1, int limit = 20}) async {
-    return await get('/notifications', queryParameters: {'page': page, 'limit': limit});
+  Future<Response> getNotifications({int page = 1, int limit = 20, String? status}) async {
+    final params = <String, dynamic>{'page': page, 'limit': limit};
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    return await get('/notifications', queryParameters: params);
+  }
+
+  Future<Response> getUnreadNotificationCount() async {
+    return await get('/notifications/unread-count');
   }
 
   Future<Response> markNotificationAsRead(String id) async {
     return await patch('/notifications/$id/read');
+  }
+
+  Future<Response> markAllNotificationsAsRead() async {
+    return await patch('/notifications/read-all');
+  }
+
+  // Deal Management APIs (Phases 10, 11, 12)
+  Future<Response> getFarmerDeals({String? status}) async {
+    final query = <String, dynamic>{};
+    if (status != null && status.isNotEmpty && status != 'ALL') {
+      query['status'] = status;
+    }
+    return await get('/deals/farmer', queryParameters: query);
+  }
+
+  Future<Response> getBuyerDeals({String? status}) async {
+    final query = <String, dynamic>{};
+    if (status != null && status.isNotEmpty && status != 'ALL') {
+      query['status'] = status;
+    }
+    return await get('/deals/buyer', queryParameters: query);
+  }
+
+  Future<Response> getDealById(String id) async {
+    return await get('/deals/$id');
+  }
+
+  Future<Response> updateDealStatus(String id, String status, {String? notes}) async {
+    return await patch('/deals/$id/status', data: {
+      'status': status,
+      if (notes != null) 'notes': notes,
+    });
+  }
+
+  Future<Response> updateDealLogistics(
+    String id, {
+    Map<String, dynamic>? pickupLocation,
+    Map<String, dynamic>? deliveryLocation,
+    bool? transportRequired,
+    String? transportType,
+    double? transportCost,
+    double? otherCosts,
+  }) async {
+    final data = <String, dynamic>{};
+    if (pickupLocation != null) data['pickupLocation'] = pickupLocation;
+    if (deliveryLocation != null) data['deliveryLocation'] = deliveryLocation;
+    if (transportRequired != null) data['transportRequired'] = transportRequired;
+    if (transportType != null) data['transportType'] = transportType;
+    if (transportCost != null) data['transportCost'] = transportCost;
+    if (otherCosts != null) data['otherCosts'] = otherCosts;
+
+    return await patch('/deals/$id/logistics', data: data);
+  }
+
+  Future<Response> markDealDelivered(String id, {String? notes}) async {
+    return await patch('/deals/$id/deliver', data: {
+      if (notes != null) 'notes': notes,
+    });
+  }
+
+  Future<Response> cancelDeal(String id, {required String reason}) async {
+    return await patch('/deals/$id/cancel', data: {
+      'reason': reason,
+    });
+  }
+
+  Future<Response> reportPaymentMade(String id, {String? notes, String? paymentMethod}) async {
+    return await patch('/deals/$id/payment/report', data: {
+      if (notes != null) 'notes': notes,
+      if (paymentMethod != null) 'paymentMethod': paymentMethod,
+    });
+  }
+
+  Future<Response> confirmPaymentReceived(String id, {String? notes}) async {
+    return await patch('/deals/$id/payment/confirm', data: {
+      if (notes != null) 'notes': notes,
+    });
+  }
+
+  Future<Response> disputePayment(String id, {required String reason}) async {
+    return await patch('/deals/$id/payment/dispute', data: {
+      'reason': reason,
+    });
+  }
+
+  Future<Response> rateDeal(
+    String id, {
+    required double rating,
+    String? feedback,
+    Map<String, dynamic>? categoryRatings,
+  }) async {
+    return await post('/deals/$id/ratings', data: {
+      'rating': rating,
+      if (feedback != null) 'feedback': feedback,
+      if (categoryRatings != null) 'categoryRatings': categoryRatings,
+    });
   }
 
   // Rating & Feedback APIs

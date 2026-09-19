@@ -6,6 +6,7 @@ import '../../constants/app_constants.dart';
 import '../../constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../widgets/notification_bell_button.dart';
 import '../../widgets/verification_status_banner.dart';
 
 class FarmerDashboardScreen extends StatefulWidget {
@@ -125,11 +126,7 @@ class _FarmerDashboardScreenState extends State<FarmerDashboardScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: 'Notifications',
-            onPressed: () => context.push(AppConstants.routeNotifications),
-          ),
+          const NotificationBellButton(),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
@@ -199,6 +196,14 @@ class _FarmerDashboardScreenState extends State<FarmerDashboardScreen> {
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppConstants.routeFarmerOpportunities);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.handshake, color: Color(0xFF2563EB)),
+              title: const Text('My Deals'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppConstants.routeFarmerDeals);
               },
             ),
             ListTile(
@@ -471,6 +476,13 @@ class _FarmerDashboardScreenState extends State<FarmerDashboardScreen> {
                     icon: Icons.handshake_outlined,
                     color: AppColors.secondary,
                     onTap: () => context.push(AppConstants.routeFarmerOpportunities),
+                  ),
+                  _FeatureCard(
+                    title: 'My Deals',
+                    subtitle: 'Agreed deals & logistics',
+                    icon: Icons.handshake,
+                    color: const Color(0xFF2563EB),
+                    onTap: () => context.push(AppConstants.routeFarmerDeals),
                   ),
                   _FeatureCard(
                     title: 'Market Prices',

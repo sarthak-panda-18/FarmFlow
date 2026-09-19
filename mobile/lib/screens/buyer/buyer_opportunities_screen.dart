@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../models/buyer_opportunity_model.dart';
+import '../../models/opportunity_model.dart';
 import '../../services/api_service.dart';
 
 class BuyerOpportunitiesScreen extends StatefulWidget {
@@ -22,8 +23,11 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
   String? _errorMy;
   String? _errorDiscover;
 
-  List<BuyerOpportunityModel> _myOpportunities = [];
+  List<OpportunityModel> _myOpportunities = [];
   List<DiscoverFarmerCropModel> _discoverCrops = [];
+
+  String _selectedFilter = 'ALL';
+  final List<String> _filters = ['ALL', 'PENDING', 'ACCEPTED', 'COMPLETED', 'REJECTED', 'CANCELLED'];
 
   @override
   void initState() {
@@ -55,23 +59,27 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
     });
 
     try {
-      final res = await _apiService.getBuyerOpportunities(page: 1, limit: 50);
+      final res = await _apiService.getBuyerOpportunities(
+        page: 1,
+        limit: 100,
+        status: _selectedFilter == 'ALL' ? null : _selectedFilter,
+      );
       if (mounted && res.data != null && res.data['success'] == true) {
         final List list = res.data['data'] ?? [];
         setState(() {
-          _myOpportunities = list.map((item) => BuyerOpportunityModel.fromJson(item)).toList();
+          _myOpportunities = list.map((item) => OpportunityModel.fromJson(item)).toList();
           _isLoadingMy = false;
         });
       } else {
         setState(() {
-          _errorMy = res.data?['message'] ?? 'Unable to load farmer opportunities.';
+          _errorMy = res.data?['message'] ?? 'Unable to load opportunities.';
           _isLoadingMy = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMy = 'Unable to load farmer opportunities.';
+          _errorMy = 'Unable to load opportunities.';
           _isLoadingMy = false;
         });
       }
@@ -110,11 +118,13 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
 
   Color _getStatusBgColor(String status) {
     switch (status.toUpperCase()) {
+      case 'PENDING':
       case 'INTERESTED':
         return const Color(0xFFFEF3C7);
       case 'ACCEPTED':
         return const Color(0xFFDCFCE7);
       case 'COMPLETED':
+      case 'CLOSED':
         return const Color(0xFFDBEAFE);
       case 'REJECTED':
       case 'CANCELLED':
@@ -126,11 +136,13 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
 
   Color _getStatusTextColor(String status) {
     switch (status.toUpperCase()) {
+      case 'PENDING':
       case 'INTERESTED':
         return const Color(0xFF92400E);
       case 'ACCEPTED':
         return const Color(0xFF166534);
       case 'COMPLETED':
+      case 'CLOSED':
         return const Color(0xFF1E40AF);
       case 'REJECTED':
       case 'CANCELLED':
@@ -300,84 +312,6 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
     );
   }
 
-  void _showOpportunityDetails(BuyerOpportunityModel op) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(AppConstants.paddingLarge),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    op.commodity,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getStatusBgColor(op.status),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      op.status,
-                      style: TextStyle(
-                        color: _getStatusTextColor(op.status),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(height: 20),
-              Text('Farmer: ${op.farmerName}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Text('Rating: ', style: TextStyle(color: AppColors.textSecondary)),
-                  _buildRatingBadge(op.farmerRating, op.farmerRatingCount, op.farmerIsNew),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text('Quantity: ${op.quantity} ${op.quantityUnit}'),
-              Text('Expected Price: ₹${op.offeredPrice.toStringAsFixed(0)} / ${op.quantityUnit}'),
-              if (op.notes != null && op.notes!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text('Notes: ${op.notes}', style: const TextStyle(fontStyle: FontStyle.italic, color: AppColors.textSecondary)),
-              ],
-              const SizedBox(height: 20),
-              if (op.status == 'COMPLETED') ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD97706),
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      context.push(AppConstants.routeRateFarmer, extra: op.id);
-                    },
-                    icon: const Icon(Icons.star),
-                    label: const Text('Rate Farmer'),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -421,6 +355,58 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
   }
 
   Widget _buildMyOpportunitiesTab() {
+    return Column(
+      children: [
+        // Filter Chips
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _filters.map((filter) {
+                final isSelected = _selectedFilter == filter;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(
+                      filter == 'ALL' ? 'All Opportunities' : filter,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? AppColors.secondary : AppColors.textSecondary,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: AppColors.secondary.withValues(alpha: 0.15),
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    onSelected: (selected) {
+                      if (selected && _selectedFilter != filter) {
+                        setState(() {
+                          _selectedFilter = filter;
+                        });
+                        _fetchMyOpportunities();
+                      }
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _fetchMyOpportunities,
+            child: _buildOpportunitiesList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOpportunitiesList() {
     if (_isLoadingMy) {
       return const Center(child: CircularProgressIndicator(color: AppColors.secondary));
     }
@@ -434,12 +420,13 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
             children: [
               const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
-              Text(_errorMy!, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(_errorMy!, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: _fetchMyOpportunities,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
               ),
             ],
           ),
@@ -457,7 +444,9 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
               const Icon(Icons.handshake_outlined, size: 64, color: AppColors.textMuted),
               const SizedBox(height: 16),
               Text(
-                'No farmer opportunities yet.',
+                _selectedFilter == 'ALL'
+                    ? 'No opportunities yet.'
+                    : 'No $_selectedFilter opportunities.',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.bold,
@@ -465,7 +454,7 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
               ),
               const SizedBox(height: 8),
               const Text(
-                'Explore the "Discover Farmer Crops" tab to find available farmer stock and express interest.',
+                'Explore the "Discover Farmer Crops" tab or express interest from Matched Crops.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary),
               ),
@@ -487,24 +476,32 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _fetchMyOpportunities,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(AppConstants.paddingMedium),
-        itemCount: _myOpportunities.length,
-        itemBuilder: (context, index) {
-          final op = _myOpportunities[index];
-          final isCompleted = op.status == 'COMPLETED';
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+      itemCount: _myOpportunities.length,
+      itemBuilder: (context, index) {
+        final op = _myOpportunities[index];
+        final isInitiator = op.initiatedBy == 'BUYER';
 
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            elevation: AppConstants.cardElevation,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: AppConstants.cardElevation,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+          child: InkWell(
+            onTap: () async {
+              final refreshed = await context.push(
+                AppConstants.routeOpportunityDetail,
+                extra: op.id,
+              );
+              if (refreshed == true) _fetchMyOpportunities();
+            },
+            borderRadius: BorderRadius.circular(AppConstants.borderRadius),
             child: Padding(
               padding: const EdgeInsets.all(AppConstants.paddingMedium),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Row 1: Commodity Title & Status Badge
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -517,13 +514,13 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _getStatusBgColor(op.status),
+                          color: _getStatusBgColor(op.normalizedStatus),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          op.status,
+                          op.normalizedStatus,
                           style: TextStyle(
-                            color: _getStatusTextColor(op.status),
+                            color: _getStatusTextColor(op.normalizedStatus),
                             fontWeight: FontWeight.bold,
                             fontSize: 11,
                           ),
@@ -531,65 +528,92 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 6),
+
+                  // Row 2: Initiator Tag & Farmer Name
                   Row(
                     children: [
-                      Text(
-                        'Farmer: ${op.farmerName}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isInitiator ? const Color(0xFFEFF6FF) : const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isInitiator ? const Color(0xFFBFDBFE) : const Color(0xFFBBF7D0),
+                          ),
+                        ),
+                        child: Text(
+                          isInitiator ? 'Initiated by You' : 'Initiated by Farmer',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: isInitiator ? const Color(0xFF1D4ED8) : const Color(0xFF15803D),
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      _buildRatingBadge(op.farmerRating, op.farmerRatingCount, op.farmerIsNew),
+                      Expanded(
+                        child: Text(
+                          'Farmer: ${op.farmerName}',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+
+                  const Divider(height: 16),
+
+                  // Row 3: Quantities & Offered Price
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Quantity: ${op.quantity} ${op.quantityUnit}', style: const TextStyle(fontSize: 13)),
                       Text(
-                        'Expected: ₹${op.offeredPrice.toStringAsFixed(0)} / ${op.quantityUnit}',
+                        'Offered: ₹${op.offeredPrice.toStringAsFixed(0)} / ${op.quantityUnit}',
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.secondary),
                       ),
                     ],
                   ),
-                  const Divider(height: 16),
+
+                  const SizedBox(height: 8),
+
+                  // Row 4: Distance & Details Action
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      if (isCompleted) ...[
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD97706),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      if (op.distanceKm != null)
+                        Row(
+                          children: [
+                            const Icon(Icons.near_me, size: 14, color: AppColors.secondary),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${op.distanceKm!.toStringAsFixed(1)} km away',
+                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        )
+                      else
+                        const SizedBox.shrink(),
+                      const Row(
+                        children: [
+                          Text(
+                            'View Details',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
                           ),
-                          onPressed: () async {
-                            final rated = await context.push<bool>(AppConstants.routeRateFarmer, extra: op.id);
-                            if (rated == true) _fetchMyOpportunities();
-                          },
-                          icon: const Icon(Icons.star, size: 16),
-                          label: const Text('Rate Farmer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.secondary,
-                          side: const BorderSide(color: AppColors.secondary),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                        onPressed: () => _showOpportunityDetails(op),
-                        child: const Text('View Details', style: TextStyle(fontSize: 12)),
+                          SizedBox(width: 2),
+                          Icon(Icons.chevron_right, size: 16, color: AppColors.secondary),
+                        ],
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -613,6 +637,7 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                 onPressed: _fetchDiscoverCrops,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
               ),
             ],
           ),

@@ -22,6 +22,8 @@ class AppConstants {
   static const String routeMarketPrices = '/market-prices';
   static const String routeFarmerOpportunities = '/farmer-opportunities';
   static const String routeOpportunityDetail = '/opportunity-detail';
+  static const String routeFarmerDeals = '/farmer-deals';
+  static const String routeDealDetail = '/deal-detail';
   static const String routeRateBuyer = '/rate-buyer';
   static const String routeNotifications = '/notifications';
   static const String routeFarmerMatches = '/farmer-matches';
@@ -34,6 +36,7 @@ class AppConstants {
   static const String routeRequirementDetail = '/requirement-detail';
   static const String routeBuyerProfile = '/buyer-profile';
   static const String routeBuyerOpportunities = '/buyer-opportunities';
+  static const String routeBuyerDeals = '/buyer-deals';
   static const String routeBuyerMatches = '/buyer-matches';
   static const String routeRateFarmer = '/rate-farmer';
 

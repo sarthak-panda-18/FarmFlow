@@ -141,8 +141,9 @@ class _BuyerMatchesScreenState extends State<BuyerMatchesScreen> {
                 }
               } catch (e) {
                 if (mounted) {
+                  final msg = e.toString().replaceAll('Exception: ', '');
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                    SnackBar(content: Text(msg), backgroundColor: AppColors.error),
                   );
                 }
               }

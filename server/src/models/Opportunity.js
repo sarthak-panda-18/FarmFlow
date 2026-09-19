@@ -46,10 +46,17 @@ const opportunitySchema = new mongoose.Schema(
       required: [true, 'Offered price is required'],
       min: [0, 'Offered price cannot be negative'],
     },
+    initiatedBy: {
+      type: String,
+      enum: ['FARMER', 'BUYER'],
+      required: [true, 'Opportunity initiator is required'],
+      default: 'BUYER',
+      index: true,
+    },
     status: {
       type: String,
-      enum: ['INTERESTED', 'ACCEPTED', 'REJECTED', 'COMPLETED', 'CANCELLED'],
-      default: 'INTERESTED',
+      enum: ['PENDING', 'INTERESTED', 'ACCEPTED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'CLOSED', 'COMPLETED'],
+      default: 'PENDING',
       index: true,
     },
     notes: {
@@ -65,7 +72,9 @@ const opportunitySchema = new mongoose.Schema(
 
 opportunitySchema.index({ farmerId: 1, status: 1 });
 opportunitySchema.index({ buyerId: 1, status: 1 });
-opportunitySchema.index({ cropId: 1, buyerId: 1 }, { unique: true, sparse: true });
-opportunitySchema.index({ requirementId: 1, farmerId: 1 }, { unique: true, sparse: true });
+opportunitySchema.index({ cropId: 1, requirementId: 1 });
+opportunitySchema.index({ farmerId: 1, buyerId: 1, status: 1 });
+opportunitySchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Opportunity', opportunitySchema);
+

@@ -30,6 +30,12 @@ const ratingSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    dealId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Deal',
+      default: null,
+      index: true,
+    },
     rating: {
       type: Number,
       required: [true, 'Rating is required'],
@@ -59,13 +65,31 @@ const ratingSchema = new mongoose.Schema(
       default: '',
       maxlength: [500, 'Comment cannot exceed 500 characters'],
     },
+    feedback: {
+      type: String,
+      trim: true,
+      default: '',
+      maxlength: [500, 'Feedback cannot exceed 500 characters'],
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Prevent duplicate rating from same user for the same opportunity/transaction
+// Synchronize feedback and comment
+ratingSchema.pre('save', function (next) {
+  if (this.feedback && !this.comment) {
+    this.comment = this.feedback;
+  } else if (this.comment && !this.feedback) {
+    this.feedback = this.comment;
+  }
+  next();
+});
+
+// Prevent duplicate rating from same user for the same opportunity or deal
 ratingSchema.index({ fromUserId: 1, opportunityId: 1 }, { unique: true, sparse: true });
+ratingSchema.index({ fromUserId: 1, dealId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Rating', ratingSchema);
+

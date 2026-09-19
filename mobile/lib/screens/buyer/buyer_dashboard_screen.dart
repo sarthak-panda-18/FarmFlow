@@ -6,6 +6,7 @@ import '../../constants/app_constants.dart';
 import '../../constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/buyer_provider.dart';
+import '../../widgets/notification_bell_button.dart';
 
 class BuyerDashboardScreen extends StatefulWidget {
   const BuyerDashboardScreen({super.key});
@@ -79,6 +80,7 @@ class _BuyerDashboardScreenState extends State<BuyerDashboardScreen> {
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
         actions: [
+          const NotificationBellButton(),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
@@ -115,6 +117,14 @@ class _BuyerDashboardScreenState extends State<BuyerDashboardScreen> {
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppConstants.routeBuyerOpportunities);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.handshake_outlined, color: Color(0xFF2563EB)),
+              title: const Text('My Deals'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppConstants.routeBuyerDeals);
               },
             ),
             ListTile(
@@ -340,6 +350,13 @@ class _BuyerDashboardScreenState extends State<BuyerDashboardScreen> {
                     icon: Icons.handshake,
                     color: const Color(0xFFD97706),
                     onTap: () => context.push(AppConstants.routeBuyerOpportunities),
+                  ),
+                  _BuyerFeatureCard(
+                    title: 'My Deals',
+                    subtitle: 'Agreed deals & logistics',
+                    icon: Icons.handshake_outlined,
+                    color: const Color(0xFF2563EB),
+                    onTap: () => context.push(AppConstants.routeBuyerDeals),
                   ),
                   _BuyerFeatureCard(
                     title: 'My Requirements',

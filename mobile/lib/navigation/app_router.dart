@@ -20,7 +20,9 @@ import '../screens/farmer/opportunity_detail_screen.dart';
 import '../screens/farmer/rate_buyer_screen.dart';
 import '../screens/farmer/farmer_notifications_screen.dart';
 import '../screens/farmer/farmer_matches_screen.dart';
+import '../screens/farmer/farmer_deals_screen.dart';
 import '../screens/common/map_discovery_screen.dart';
+import '../screens/common/deal_detail_screen.dart';
 import '../screens/buyer/add_requirement_screen.dart';
 import '../screens/buyer/buyer_dashboard_screen.dart';
 import '../screens/buyer/buyer_requirements_screen.dart';
@@ -28,6 +30,7 @@ import '../screens/buyer/buyer_profile_screen.dart';
 import '../screens/buyer/buyer_verification_screen.dart';
 import '../screens/buyer/requirement_detail_screen.dart';
 import '../screens/buyer/buyer_opportunities_screen.dart';
+import '../screens/buyer/buyer_deals_screen.dart';
 import '../screens/buyer/buyer_matches_screen.dart';
 
 GoRouter createRouter(AuthProvider authProvider) {
@@ -56,6 +59,7 @@ GoRouter createRouter(AuthProvider authProvider) {
           currentLocation == AppConstants.routeFarmerRecommendations ||
           currentLocation == AppConstants.routeFarmerOpportunities ||
           currentLocation == AppConstants.routeOpportunityDetail ||
+          currentLocation == AppConstants.routeFarmerDeals ||
           currentLocation == AppConstants.routeRateBuyer;
 
       final isBuyerRoute = currentLocation == AppConstants.routeBuyerDashboard ||
@@ -66,6 +70,7 @@ GoRouter createRouter(AuthProvider authProvider) {
           currentLocation == AppConstants.routeEditRequirement ||
           currentLocation == AppConstants.routeRequirementDetail ||
           currentLocation == AppConstants.routeBuyerOpportunities ||
+          currentLocation == AppConstants.routeBuyerDeals ||
           currentLocation == AppConstants.routeRateFarmer;
 
       // 1. Unauthenticated users cannot access protected routes
@@ -195,6 +200,19 @@ GoRouter createRouter(AuthProvider authProvider) {
         },
       ),
       GoRoute(
+        path: AppConstants.routeFarmerDeals,
+        builder: (BuildContext context, GoRouterState state) {
+          return const FarmerDealsScreen();
+        },
+      ),
+      GoRoute(
+        path: AppConstants.routeDealDetail,
+        builder: (BuildContext context, GoRouterState state) {
+          final dealId = state.extra as String;
+          return DealDetailScreen(dealId: dealId);
+        },
+      ),
+      GoRoute(
         path: AppConstants.routeRateBuyer,
         builder: (BuildContext context, GoRouterState state) {
           final opId = state.extra as String;
@@ -211,6 +229,12 @@ GoRouter createRouter(AuthProvider authProvider) {
         path: AppConstants.routeBuyerDashboard,
         builder: (BuildContext context, GoRouterState state) {
           return const BuyerDashboardScreen();
+        },
+      ),
+      GoRoute(
+        path: AppConstants.routeBuyerDeals,
+        builder: (BuildContext context, GoRouterState state) {
+          return const BuyerDealsScreen();
         },
       ),
       GoRoute(
