@@ -31,7 +31,7 @@ class _AddCropScreenState extends State<AddCropScreen> {
   final TextEditingController _cropNameController = TextEditingController();
   String? _selectedVariety;
   final TextEditingController _quantityController = TextEditingController();
-  String _selectedUnit = 'kg';
+  String _selectedUnit = 'quintal';
   final TextEditingController _expectedPriceController = TextEditingController();
   DateTime? _selectedHarvestDate;
   String? _selectedState;
@@ -535,8 +535,9 @@ class _AddCropScreenState extends State<AddCropScreen> {
                         enabled: !_isSubmitting,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: const InputDecoration(
-                          labelText: 'Quantity *',
+                          labelText: 'Quantity (Quintals) *',
                           prefixIcon: Icon(Icons.scale_outlined),
+                          hintText: 'e.g. 50',
                         ),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) {
@@ -559,9 +560,7 @@ class _AddCropScreenState extends State<AddCropScreen> {
                           labelText: 'Unit *',
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'kg', child: Text('kg')),
-                          DropdownMenuItem(value: 'quintal', child: Text('quintal')),
-                          DropdownMenuItem(value: 'tonne', child: Text('tonne')),
+                          DropdownMenuItem(value: 'quintal', child: Text('Quintal')),
                         ],
                         onChanged: _isSubmitting
                             ? null
@@ -584,7 +583,7 @@ class _AddCropScreenState extends State<AddCropScreen> {
                   enabled: !_isSubmitting,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
-                    labelText: 'Farmer Expected Price (₹ / Unit)',
+                    labelText: 'Farmer Expected Price (₹ / Quintal)',
                     prefixIcon: Icon(Icons.currency_rupee),
                     hintText: 'e.g. 2200',
                   ),

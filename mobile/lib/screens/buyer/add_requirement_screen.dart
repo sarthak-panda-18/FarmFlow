@@ -22,7 +22,7 @@ class _AddRequirementScreenState extends State<AddRequirementScreen> {
   String? _selectedCommodity;
   String? _selectedVariety;
   final TextEditingController _quantityController = TextEditingController();
-  String _selectedUnit = 'kg';
+  String _selectedUnit = 'quintal';
   final TextEditingController _priceController = TextEditingController();
   DateTime _requiredByDate = DateTime.now().add(const Duration(days: 7));
   String? _selectedState;
@@ -538,7 +538,7 @@ class _AddRequirementScreenState extends State<AddRequirementScreen> {
                                 if (expectedPriceValue != null && expectedPriceValue > 0) ...[
                                   const Divider(height: 14),
                                   Text(
-                                    'Your Expected Price: ₹${expectedPriceValue.toStringAsFixed(0)} / $_selectedUnit',
+                                    'Your Expected Price: ₹${expectedPriceValue.toStringAsFixed(0)} / Quintal',
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -573,7 +573,7 @@ class _AddRequirementScreenState extends State<AddRequirementScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Quantity *',
+                                'Quantity (Quintals) *',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -585,7 +585,7 @@ class _AddRequirementScreenState extends State<AddRequirementScreen> {
                                 decoration: const InputDecoration(
                                   border: OutlineInputBorder(),
                                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                  hintText: 'e.g. 500',
+                                  hintText: 'e.g. 50',
                                 ),
                                 validator: (val) {
                                   if (val == null || val.trim().isEmpty) return 'Please enter the required quantity.';
@@ -617,9 +617,7 @@ class _AddRequirementScreenState extends State<AddRequirementScreen> {
                                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'kg', child: Text('kg')),
                                   DropdownMenuItem(value: 'quintal', child: Text('Quintal')),
-                                  DropdownMenuItem(value: 'tonne', child: Text('Tonne')),
                                 ],
                                 onChanged: (val) {
                                   if (val != null) setState(() => _selectedUnit = val);
@@ -634,7 +632,7 @@ class _AddRequirementScreenState extends State<AddRequirementScreen> {
 
                     // Expected Price
                     Text(
-                      'Expected Price (₹) *',
+                      'Expected Price (₹ / Quintal) *',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),

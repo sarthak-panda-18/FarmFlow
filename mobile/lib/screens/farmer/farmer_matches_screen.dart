@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../models/match_model.dart';
@@ -270,23 +271,79 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
 
     if (_matches.isEmpty) {
       return Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppConstants.paddingLarge),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.handshake_outlined, size: 56, color: Colors.grey[400]),
-              const SizedBox(height: 12),
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person_search_outlined, size: 50, color: AppColors.primary),
+              ),
+              const SizedBox(height: 20),
               const Text(
-                'No matching buyer requirements found',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                'No Buyer Found',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.textPrimary),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               const Text(
-                'Ensure you have active crops listed. You can also increase the distance filter above.',
+                "We couldn't find a Buyer matching your crop, quantity, location and requirements right now.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.notifications_active_outlined, size: 16, color: Color(0xFF16A34A)),
+                    SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        "We'll notify you when a suitable Buyer becomes available.",
+                        style: TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => context.push(AppConstants.routeMyCrops),
+                    icon: const Icon(Icons.eco_outlined),
+                    label: const Text('View My Crops'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => context.go(AppConstants.routeFarmerDashboard),
+                    icon: const Icon(Icons.dashboard_outlined),
+                    label: const Text('Go to Dashboard'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../models/match_model.dart';
@@ -270,23 +271,79 @@ class _BuyerMatchesScreenState extends State<BuyerMatchesScreen> {
 
     if (_matches.isEmpty) {
       return Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppConstants.paddingLarge),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.handshake_outlined, size: 56, color: Colors.grey[400]),
-              const SizedBox(height: 12),
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.search_off_outlined, size: 50, color: AppColors.secondary),
+              ),
+              const SizedBox(height: 20),
               const Text(
-                'No matching farmer crops found',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                'No Farmer Found',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.textPrimary),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               const Text(
-                'Ensure you have active purchase requirements listed, or increase the search distance.',
+                "We couldn't find a Farmer matching your crop, quantity, location and requirements right now.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.notifications_active_outlined, size: 16, color: Color(0xFF2563EB)),
+                    SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        "We'll notify you when a suitable Farmer becomes available.",
+                        style: TextStyle(color: Color(0xFF1D4ED8), fontSize: 12, fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => context.push(AppConstants.routeBuyerRequirements),
+                    icon: const Icon(Icons.receipt_long_outlined),
+                    label: const Text('View My Requirements'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => context.go(AppConstants.routeBuyerDashboard),
+                    icon: const Icon(Icons.dashboard_outlined),
+                    label: const Text('Go to Dashboard'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

@@ -11,14 +11,14 @@ const { buildCommodityFilter } = require('../utils/commodityCategoryMapping');
 const DEFAULT_MAX_MATCH_DISTANCE_KM = 100;
 
 /**
- * Normalizes quantity to kilograms for standard comparison
+ * Normalizes quantity to Quintals for standard agricultural comparison
  */
-const toKilograms = (qty, unit) => {
+const toQuintals = (qty, unit) => {
   const q = Number(qty) || 0;
-  const u = (unit || 'kg').toLowerCase().trim();
-  if (u === 'quintal' || u === 'q') return q * 100;
-  if (u === 'tonne' || u === 'ton' || u === 't') return q * 1000;
-  return q; // kg
+  const u = (unit || 'quintal').toLowerCase().trim();
+  if (u === 'kg') return q / 100;
+  if (u === 'tonne' || u === 'ton' || u === 't') return q * 10;
+  return q; // quintal
 };
 
 /**
@@ -26,7 +26,7 @@ const toKilograms = (qty, unit) => {
  */
 const toPricePerQuintal = (price, unit) => {
   const p = Number(price) || 0;
-  const u = (unit || 'kg').toLowerCase().trim();
+  const u = (unit || 'quintal').toLowerCase().trim();
   if (u === 'kg') return p * 100;
   if (u === 'tonne' || u === 'ton' || u === 't') return p / 10;
   return p; // already per quintal
@@ -36,8 +36,8 @@ const toPricePerQuintal = (price, unit) => {
  * Calculates transparent multi-factor compatibility score (0 - 100%)
  */
 const calculateMatchScore = ({
-  farmerKg,
-  buyerKg,
+  farmerQty,
+  buyerQty,
   farmerPricePerQ,
   buyerPricePerQ,
   marketRefPricePerQ,
@@ -50,14 +50,14 @@ const calculateMatchScore = ({
   const breakdown = {};
 
   // 1. Quantity Compatibility (Max 30 pts)
-  const minKg = Math.min(farmerKg, buyerKg);
-  const maxKg = Math.max(farmerKg, buyerKg);
-  const qtyRatio = maxKg > 0 ? minKg / maxKg : 0;
+  const minQty = Math.min(farmerQty, buyerQty);
+  const maxQty = Math.max(farmerQty, buyerQty);
+  const qtyRatio = maxQty > 0 ? minQty / maxQty : 0;
   const qtyScore = Math.round(qtyRatio * 30 * 10) / 10;
   score += qtyScore;
   breakdown.quantityScore = qtyScore;
   breakdown.quantityMatch =
-    farmerKg >= buyerKg
+    farmerQty >= buyerQty
       ? 'FULL_MATCH'
       : 'PARTIAL_MATCH';
 
@@ -196,7 +196,7 @@ const getFarmerMatches = async (req, res, next) => {
 
       const marketModalPrice = refPriceRecord?.modalPrice || 0;
 
-      const farmerKg = toKilograms(crop.quantity, crop.quantityUnit);
+      const farmerQty = toQuintals(crop.quantity, crop.quantityUnit);
       const farmerPricePerQ = toPricePerQuintal(crop.expectedPrice, crop.quantityUnit);
 
       for (const reqItem of buyerReqs) {
@@ -217,12 +217,12 @@ const getFarmerMatches = async (req, res, next) => {
           );
         }
 
-        const buyerKg = toKilograms(reqItem.quantity, reqItem.quantityUnit);
+        const buyerQty = toQuintals(reqItem.quantity, reqItem.quantityUnit);
         const buyerPricePerQ = toPricePerQuintal(reqItem.offeredPrice, reqItem.quantityUnit);
 
         const matchScoreResult = calculateMatchScore({
-          farmerKg,
-          buyerKg,
+          farmerQty,
+          buyerQty,
           farmerPricePerQ,
           buyerPricePerQ,
           marketRefPricePerQ: marketModalPrice,
@@ -372,12 +372,14 @@ const getBuyerMatches = async (req, res, next) => {
           );
         }
 
-        const farmerKg = toKilograms(crop.quantity, crop.quantityUnit);
+        const farmerQty = toQuintals(crop.quantity, crop.quantityUnit);
         const farmerPricePerQ = toPricePerQuintal(crop.expectedPrice, crop.quantityUnit);
+        const buyerQty = toQuintals(reqItem.quantity, reqItem.quantityUnit);
+        const buyerPricePerQ = toPricePerQuintal(reqItem.offeredPrice, reqItem.quantityUnit);
 
         const matchScoreResult = calculateMatchScore({
-          farmerKg,
-          buyerKg,
+          farmerQty,
+          buyerQty,
           farmerPricePerQ,
           buyerPricePerQ,
           marketRefPricePerQ: marketModalPrice,
@@ -569,6 +571,6 @@ module.exports = {
   getBuyerMatches,
   getMatchDetails,
   calculateMatchScore,
-  toKilograms,
+  toQuintals,
   toPricePerQuintal,
 };

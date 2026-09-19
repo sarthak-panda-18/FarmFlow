@@ -37,6 +37,15 @@ class DealModel {
   final String? cancelledBy;
   final DateTime? cancelledAt;
 
+  // Official Deal Agreement
+  final String agreementStatus;
+  final bool farmerAccepted;
+  final bool buyerAccepted;
+  final DateTime? farmerAcceptedAt;
+  final DateTime? buyerAcceptedAt;
+  final int agreementVersion;
+  final int termsAcceptedVersion;
+
   // Logistics
   final String pickupAddress;
   final double? pickupLat;
@@ -103,7 +112,7 @@ class DealModel {
     required this.crop,
     this.variety = '',
     required this.quantity,
-    required this.quantityUnit,
+    this.quantityUnit = 'Quintal',
     required this.agreedPrice,
     this.agreedPriceUnit = 'quintal',
     required this.totalAmount,
@@ -113,6 +122,13 @@ class DealModel {
     this.cancellationReason,
     this.cancelledBy,
     this.cancelledAt,
+    this.agreementStatus = 'AGREEMENT_PENDING',
+    this.farmerAccepted = false,
+    this.buyerAccepted = false,
+    this.farmerAcceptedAt,
+    this.buyerAcceptedAt,
+    this.agreementVersion = 1,
+    this.termsAcceptedVersion = 1,
     required this.pickupAddress,
     this.pickupLat,
     this.pickupLng,
@@ -149,7 +165,12 @@ class DealModel {
     required this.createdAt,
   });
 
-  bool get isConfirmed => status.toUpperCase() == 'CONFIRMED';
+  bool get isAgreementPending => agreementStatus.toUpperCase() == 'AGREEMENT_PENDING' || status.toUpperCase() == 'AGREEMENT_PENDING';
+  bool get isWaitingForBuyer => agreementStatus.toUpperCase() == 'WAITING_FOR_BUYER';
+  bool get isWaitingForFarmer => agreementStatus.toUpperCase() == 'WAITING_FOR_FARMER';
+  bool get isAgreementConfirmed => agreementStatus.toUpperCase() == 'DEAL_CONFIRMED' || (farmerAccepted && buyerAccepted);
+
+  bool get isConfirmed => status.toUpperCase() == 'CONFIRMED' || status.toUpperCase() == 'DEAL_CONFIRMED' || isAgreementConfirmed;
   bool get isDelivered => status.toUpperCase() == 'DELIVERED' || logisticsStatus.toUpperCase() == 'DELIVERED';
   bool get isCompleted => status.toUpperCase() == 'COMPLETED';
   bool get isCancelled => status.toUpperCase() == 'CANCELLED';
@@ -219,17 +240,25 @@ class DealModel {
       crop: json['crop'] ?? json['commodity'] ?? 'Crop',
       variety: json['variety'] ?? '',
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
-      quantityUnit: json['quantityUnit'] ?? 'kg',
+      quantityUnit: json['quantityUnit'] ?? 'Quintal',
       agreedPrice: (json['agreedPrice'] as num?)?.toDouble() ?? 0.0,
       agreedPriceUnit: json['agreedPriceUnit'] ?? 'quintal',
       totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0.0,
       agreedDate: json['agreedDate'] != null ? DateTime.tryParse(json['agreedDate']) ?? DateTime.now() : DateTime.now(),
       deliveryDate: json['deliveryDate'] != null ? DateTime.tryParse(json['deliveryDate']) : null,
 
-      status: json['status'] ?? 'CONFIRMED',
+      status: json['status'] ?? 'AGREEMENT_PENDING',
       cancellationReason: json['cancellationReason'],
       cancelledBy: json['cancelledBy'],
       cancelledAt: json['cancelledAt'] != null ? DateTime.tryParse(json['cancelledAt']) : null,
+
+      agreementStatus: json['agreementStatus'] ?? 'AGREEMENT_PENDING',
+      farmerAccepted: json['farmerAccepted'] == true,
+      buyerAccepted: json['buyerAccepted'] == true,
+      farmerAcceptedAt: json['farmerAcceptedAt'] != null ? DateTime.tryParse(json['farmerAcceptedAt']) : null,
+      buyerAcceptedAt: json['buyerAcceptedAt'] != null ? DateTime.tryParse(json['buyerAcceptedAt']) : null,
+      agreementVersion: json['agreementVersion'] is num ? (json['agreementVersion'] as num).toInt() : 1,
+      termsAcceptedVersion: json['termsAcceptedVersion'] is num ? (json['termsAcceptedVersion'] as num).toInt() : 1,
 
       pickupAddress: pickup['address'] ?? '',
       pickupLat: pLat != 0.0 ? pLat : null,

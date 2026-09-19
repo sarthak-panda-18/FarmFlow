@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../models/deal_model.dart';
@@ -599,6 +600,12 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   Color _getStatusColor(String status) {
     switch (status.toUpperCase()) {
+      case 'AGREEMENT_PENDING':
+        return const Color(0xFFEAB308);
+      case 'WAITING_FOR_BUYER':
+      case 'WAITING_FOR_FARMER':
+        return const Color(0xFFF97316);
+      case 'DEAL_CONFIRMED':
       case 'CONFIRMED':
         return const Color(0xFF2563EB);
       case 'PREPARING':
@@ -695,6 +702,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                             _buildStatusBanner(deal),
                             const SizedBox(height: 16),
 
+                            // 1.5 Official Deal Agreement Card (Change 3)
+                            _buildAgreementSummaryCard(deal, isFarmer),
+                            const SizedBox(height: 16),
+
                             // 2. Commodity & Deal Terms
                             _buildCommodityCard(deal),
                             const SizedBox(height: 16),
@@ -784,6 +795,142 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  // AGREEMENT SUMMARY CARD
+  Widget _buildAgreementSummaryCard(DealModel deal, bool isFarmer) {
+    final bool isConfirmed = deal.isAgreementConfirmed;
+    final bool currentUserAccepted = isFarmer ? deal.farmerAccepted : deal.buyerAccepted;
+
+    return Card(
+      elevation: AppConstants.cardElevation,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        side: BorderSide(
+          color: isConfirmed ? Colors.green.shade400 : Colors.amber.shade500,
+          width: 1.2,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isConfirmed ? Colors.green.shade50.withValues(alpha: 0.35) : Colors.amber.shade50.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        ),
+        padding: const EdgeInsets.all(AppConstants.paddingMedium),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isConfirmed ? Icons.verified_user : Icons.gavel,
+                  color: isConfirmed ? AppColors.success : const Color(0xFFD97706),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'OFFICIAL DEAL AGREEMENT (v${deal.agreementVersion})',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isConfirmed ? Colors.green.shade900 : const Color(0xFF92400E),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isConfirmed ? Colors.green.shade100 : Colors.amber.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    deal.agreementStatus.replaceAll('_', ' '),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isConfirmed ? Colors.green.shade800 : const Color(0xFF92400E),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        deal.farmerAccepted ? Icons.check_circle : Icons.hourglass_top,
+                        size: 16,
+                        color: deal.farmerAccepted ? Colors.green : Colors.orange,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Farmer: ${deal.farmerAccepted ? 'Accepted' : 'Pending'}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: deal.farmerAccepted ? Colors.green.shade900 : Colors.orange.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        deal.buyerAccepted ? Icons.check_circle : Icons.hourglass_top,
+                        size: 16,
+                        color: deal.buyerAccepted ? Colors.green : Colors.orange,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Buyer: ${deal.buyerAccepted ? 'Accepted' : 'Pending'}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: deal.buyerAccepted ? Colors.green.shade900 : Colors.orange.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isConfirmed ? Colors.green.shade800 : AppColors.primary,
+                  side: BorderSide(color: isConfirmed ? Colors.green.shade400 : AppColors.primary),
+                ),
+                icon: const Icon(Icons.article_outlined, size: 18),
+                label: Text(
+                  isConfirmed
+                      ? 'View Signed Agreement'
+                      : (currentUserAccepted
+                          ? 'View Agreement (Waiting Counterparty)'
+                          : 'Review & Sign Deal Agreement'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                onPressed: () async {
+                  await context.push(AppConstants.routeDealAgreement, extra: deal.id);
+                  _fetchDeal();
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1496,12 +1643,35 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       return const SizedBox.shrink();
     }
 
+    final isAgreementStage = deal.isAgreementPending || deal.isWaitingForBuyer || deal.isWaitingForFarmer;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!deal.isDelivered) ...[
+        if (isAgreementStage) ...[
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+            ),
+            icon: const Icon(Icons.gavel),
+            label: Text(
+              ((isFarmer && deal.farmerAccepted) || (!isFarmer && deal.buyerAccepted))
+                  ? 'View Agreement (Waiting Counterparty)'
+                  : 'Review & Accept Official Agreement',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            onPressed: () async {
+              await context.push(AppConstants.routeDealAgreement, extra: deal.id);
+              _fetchDeal();
+            },
+          ),
+          const SizedBox(height: 10),
+        ] else if (!deal.isDelivered) ...[
           // Intermediate status progress buttons
-          if (deal.status == 'CONFIRMED') ...[
+          if (deal.status == 'CONFIRMED' || deal.status == 'DEAL_CONFIRMED') ...[
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD97706),

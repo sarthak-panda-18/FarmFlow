@@ -23,6 +23,8 @@ class _BuyerDealsScreenState extends State<BuyerDealsScreen> {
 
   final List<String> _statusFilters = [
     'ALL',
+    'AGREEMENT_PENDING',
+    'DEAL_CONFIRMED',
     'CONFIRMED',
     'PREPARING',
     'IN_TRANSIT',
@@ -63,6 +65,12 @@ class _BuyerDealsScreenState extends State<BuyerDealsScreen> {
 
   Color _getStatusColor(String status) {
     switch (status.toUpperCase()) {
+      case 'AGREEMENT_PENDING':
+        return const Color(0xFFEAB308);
+      case 'WAITING_FOR_BUYER':
+      case 'WAITING_FOR_FARMER':
+        return const Color(0xFFF97316);
+      case 'DEAL_CONFIRMED':
       case 'CONFIRMED':
         return const Color(0xFF2563EB);
       case 'PREPARING':

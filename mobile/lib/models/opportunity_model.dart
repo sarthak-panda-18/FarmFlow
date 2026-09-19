@@ -133,7 +133,7 @@ class OpportunityModel {
       cropName: crop['cropName'] ?? json['cropName'] ?? json['commodity'] ?? 'Crop',
       variety: crop['variety'] ?? '',
       quantity: (json['quantity'] as num?)?.toDouble() ?? (crop['quantity'] as num?)?.toDouble() ?? 0.0,
-      quantityUnit: json['quantityUnit'] ?? crop['quantityUnit'] ?? 'kg',
+      quantityUnit: json['quantityUnit'] ?? crop['quantityUnit'] ?? 'quintal',
       offeredPrice: (json['offeredPrice'] as num?)?.toDouble() ?? 0.0,
       expectedPrice: (crop['expectedPrice'] as num?)?.toDouble() ?? (json['expectedPrice'] as num?)?.toDouble() ?? 0.0,
       harvestDate: crop['harvestDate'] ?? json['harvestDate'],

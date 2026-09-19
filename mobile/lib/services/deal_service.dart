@@ -44,6 +44,42 @@ class DealService {
     }
   }
 
+  Future<Map<String, dynamic>> getDealAgreement(String id) async {
+    try {
+      final res = await _apiService.getDealAgreement(id);
+      if (res.data != null && res.data['success'] == true && res.data['data'] != null) {
+        return Map<String, dynamic>.from(res.data['data']);
+      }
+      throw Exception(res.data?['message'] ?? 'Unable to load deal agreement.');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> acceptDealAgreement(String id, {required bool agreeToTerms, int? agreementVersion}) async {
+    try {
+      final res = await _apiService.acceptDealAgreement(id, agreeToTerms: agreeToTerms, agreementVersion: agreementVersion);
+      if (res.data != null && res.data['success'] == true) {
+        return Map<String, dynamic>.from(res.data['data'] ?? {});
+      }
+      throw Exception(res.data?['message'] ?? 'Failed to accept agreement.');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<DealModel> updateDealAgreement(String id, Map<String, dynamic> data) async {
+    try {
+      final res = await _apiService.updateDealAgreement(id, data);
+      if (res.data != null && res.data['success'] == true && res.data['data'] != null) {
+        return DealModel.fromJson(res.data['data']);
+      }
+      throw Exception(res.data?['message'] ?? 'Failed to update agreement.');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<DealModel> updateDealStatus(String id, String status, {String? notes}) async {
     try {
       final res = await _apiService.updateDealStatus(id, status, notes: notes);

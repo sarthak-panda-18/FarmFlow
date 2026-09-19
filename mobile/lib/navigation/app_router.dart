@@ -23,6 +23,7 @@ import '../screens/farmer/farmer_matches_screen.dart';
 import '../screens/farmer/farmer_deals_screen.dart';
 import '../screens/common/map_discovery_screen.dart';
 import '../screens/common/deal_detail_screen.dart';
+import '../screens/common/deal_agreement_screen.dart';
 import '../screens/buyer/add_requirement_screen.dart';
 import '../screens/buyer/buyer_dashboard_screen.dart';
 import '../screens/buyer/buyer_requirements_screen.dart';
@@ -177,7 +178,8 @@ GoRouter createRouter(AuthProvider authProvider) {
       GoRoute(
         path: AppConstants.routeFarmerRecommendations,
         builder: (BuildContext context, GoRouterState state) {
-          return const FarmerRecommendationsScreen();
+          final cropId = state.extra as String?;
+          return FarmerRecommendationsScreen(initialCropId: cropId);
         },
       ),
       GoRoute(
@@ -210,6 +212,13 @@ GoRouter createRouter(AuthProvider authProvider) {
         builder: (BuildContext context, GoRouterState state) {
           final dealId = state.extra as String;
           return DealDetailScreen(dealId: dealId);
+        },
+      ),
+      GoRoute(
+        path: AppConstants.routeDealAgreement,
+        builder: (BuildContext context, GoRouterState state) {
+          final dealId = state.extra as String;
+          return DealAgreementScreen(dealId: dealId);
         },
       ),
       GoRoute(

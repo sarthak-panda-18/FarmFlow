@@ -27,8 +27,17 @@ router.get('/discover-crops', requireRole('BUYER'), getDiscoverableFarmerCrops);
 router.get('/buyer-opportunities', requireRole('BUYER'), getBuyerOpportunities);
 router.get('/farmer-opportunities', requireRole('FARMER'), getFarmerOpportunities);
 
+const {
+  getCropRecommendations,
+  getOpportunityRecommendations,
+} = require('../controllers/recommendationController');
+
 // Single opportunity detail
 router.get('/:id', getOpportunityById);
+
+// Recommendations
+router.get('/crop/:cropId/recommendations', requireRole('FARMER'), getCropRecommendations);
+router.get('/:id/recommendations', requireRole('FARMER'), getOpportunityRecommendations);
 
 // Accept
 router.post('/:id/accept', acceptOpportunity);

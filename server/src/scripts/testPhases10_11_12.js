@@ -127,8 +127,8 @@ async function runTests() {
         commodity: 'Tomato',
         cropName: 'Tomato',
         variety: 'Hybrid Red',
-        quantity: 500, // 500 kg = 5 quintals
-        quantityUnit: 'kg',
+        quantity: 5,
+        quantityUnit: 'quintal',
         expectedPrice: 2100, // ₹2100 per quintal
         harvestDate: new Date(Date.now() + 86400000 * 2).toISOString(),
         state: 'Karnataka',
@@ -140,7 +140,7 @@ async function runTests() {
       cropRes.data?.data?.crop?._id ||
       cropRes.data?.data?._id ||
       cropRes.data?.data?.id;
-    assert(cropRes.status === 201 && Boolean(cropId), 'Created active Farmer crop listing (500 kg @ ₹2,100/quintal)');
+    assert(cropRes.status === 201 && Boolean(cropId), 'Created active Farmer crop listing (5 Quintals @ ₹2,100/quintal)');
 
     // 4. Buyer expresses interest to create Opportunity
     const opRes = await request('/opportunities', {
@@ -149,7 +149,7 @@ async function runTests() {
       body: {
         cropId,
         offeredPrice: 2100,
-        notes: 'Ready to purchase 500 kg tomato',
+        notes: 'Ready to purchase 5 quintals tomato',
       },
     });
     const opId =
@@ -169,6 +169,22 @@ async function runTests() {
     const dealId = acceptRes.data?.data?.dealId;
     assert(dealId, 'Deal record auto-instantiated on Opportunity acceptance');
 
+    // 5.5 Official Deal Agreement Acceptance (Farmer + Buyer)
+    console.log('\n--- Testing Deal Agreement Mutual Acceptance ---');
+    const farmerAccept = await request(`/deals/${dealId}/agreement/accept`, {
+      method: 'POST',
+      token: farmerToken,
+      body: { hasReviewedAndAgreed: true },
+    });
+    assert(farmerAccept.status === 200, 'Farmer accepted Deal Agreement (200)');
+
+    const buyerAccept = await request(`/deals/${dealId}/agreement/accept`, {
+      method: 'POST',
+      token: buyerToken,
+      body: { hasReviewedAndAgreed: true },
+    });
+    assert(buyerAccept.status === 200, 'Buyer accepted Deal Agreement (200)');
+
     // 6. Fetch Deal Details & Unit Conversion Check
     console.log('\n--- Testing Phase 10: Deal Details & Unit Conversion ---');
     const dealDetailRes = await request(`/deals/${dealId}`, { token: farmerToken });
@@ -176,13 +192,13 @@ async function runTests() {
 
     assert(dealDetailRes.status === 200, 'Retrieved Deal details by ID');
     assert(deal.commodity === 'Tomato', 'Commodity matches Tomato');
-    assert(deal.quantity === 500, 'Quantity is 500 kg');
+    assert(deal.quantity === 5, 'Quantity is 5 Quintals');
     assert(deal.agreedPrice === 2100, 'Agreed price is ₹2100/quintal');
 
     // Financial calculations check:
-    // 500 kg @ ₹2100/quintal = 5 quintals * ₹2100 = ₹10,500 Gross Value
-    assert(deal.totalAmount === 10500, 'Gross value correctly unit-converted: 500 kg @ ₹2100/quintal = ₹10,500');
-    assert(deal.status === 'CONFIRMED', 'Initial deal status is CONFIRMED');
+    // 5 quintals @ ₹2100/quintal = ₹10,500 Gross Value
+    assert(deal.totalAmount === 10500, 'Gross value calculated: 5 Quintals @ ₹2100/quintal = ₹10,500');
+    assert(deal.status === 'DEAL_CONFIRMED' || deal.status === 'CONFIRMED', 'Initial deal status is DEAL_CONFIRMED');
     assert(deal.paymentStatus === 'PAYMENT_PENDING', 'Initial payment status is PAYMENT_PENDING');
     assert(deal.pickupMapsUrl && deal.deliveryMapsUrl, 'Google Maps URLs generated for pickup & delivery');
     assert(deal.distanceKm != null && deal.distanceKm > 0, `Distance calculated: ${deal.distanceKm?.toFixed(1)} km`);
@@ -323,8 +339,8 @@ async function runTests() {
       body: {
         commodity: 'Potato',
         cropName: 'Potato',
-        quantity: 1000,
-        quantityUnit: 'kg',
+        quantity: 10,
+        quantityUnit: 'quintal',
         expectedPrice: 1500,
         harvestDate: new Date(Date.now() + 86400000 * 2).toISOString(),
         state: 'Karnataka',
@@ -352,6 +368,18 @@ async function runTests() {
       token: farmerToken,
     });
     const dealId2 = acceptRes2.data?.data?.dealId;
+
+    // Accept agreement on second deal
+    await request(`/deals/${dealId2}/agreement/accept`, {
+      method: 'POST',
+      token: farmerToken,
+      body: { hasReviewedAndAgreed: true },
+    });
+    await request(`/deals/${dealId2}/agreement/accept`, {
+      method: 'POST',
+      token: buyerToken,
+      body: { hasReviewedAndAgreed: true },
+    });
 
     // Buyer reports payment
     await request(`/deals/${dealId2}/payment/report`, {

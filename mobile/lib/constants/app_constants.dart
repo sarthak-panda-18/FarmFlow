@@ -24,6 +24,7 @@ class AppConstants {
   static const String routeOpportunityDetail = '/opportunity-detail';
   static const String routeFarmerDeals = '/farmer-deals';
   static const String routeDealDetail = '/deal-detail';
+  static const String routeDealAgreement = '/deal-agreement';
   static const String routeRateBuyer = '/rate-buyer';
   static const String routeNotifications = '/notifications';
   static const String routeFarmerMatches = '/farmer-matches';

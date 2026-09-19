@@ -36,10 +36,12 @@ const cropSchema = new mongoose.Schema(
     quantityUnit: {
       type: String,
       enum: {
-        values: ['kg', 'quintal', 'tonne'],
-        message: 'Unit must be kg, quintal, or tonne',
+        values: ['quintal'],
+        message: 'Only quintal is supported as quantity unit',
       },
-      required: [true, 'Quantity unit is required'],
+      default: 'quintal',
+      lowercase: true,
+      trim: true,
     },
     expectedPrice: {
       type: Number,

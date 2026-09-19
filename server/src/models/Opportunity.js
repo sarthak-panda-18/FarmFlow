@@ -38,8 +38,13 @@ const opportunitySchema = new mongoose.Schema(
     },
     quantityUnit: {
       type: String,
-      default: 'kg',
+      enum: {
+        values: ['quintal'],
+        message: 'Only quintal is supported as quantity unit',
+      },
+      default: 'quintal',
       trim: true,
+      lowercase: true,
     },
     offeredPrice: {
       type: Number,
@@ -63,6 +68,20 @@ const opportunitySchema = new mongoose.Schema(
       type: String,
       default: '',
       trim: true,
+    },
+    transportCost: {
+      type: Number,
+      default: 0,
+      min: [0, 'Transportation cost cannot be negative'],
+    },
+    otherCosts: {
+      type: Number,
+      default: 0,
+      min: [0, 'Other costs cannot be negative'],
+    },
+    distanceKm: {
+      type: Number,
+      default: null,
     },
   },
   {

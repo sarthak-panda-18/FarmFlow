@@ -198,6 +198,13 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
 
                   final data = snapshot.data?.data;
                   final List history = data != null && data['success'] == true ? (data['data'] ?? []) : [];
+                  final dynamic prevRecord = history.length >= 2 ? history[history.length - 2] : null;
+                  final double? prevPrice = (prevRecord != null && prevRecord['modalPrice'] != null)
+                      ? (prevRecord['modalPrice'] as num).toDouble()
+                      : null;
+                  final double? pctChange = (prevPrice != null && prevPrice > 0)
+                      ? (((item.modalPrice - prevPrice) / prevPrice) * 100.0)
+                      : null;
 
                   return ListView(
                     controller: scrollController,
@@ -244,6 +251,68 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                           ),
                         ],
                       ),
+                      if (prevPrice != null && pctChange != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: pctChange >= 0 ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: pctChange >= 0 ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Current: ₹${item.modalPrice.toStringAsFixed(0)} / Quintal',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: pctChange >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${pctChange >= 0 ? '↑ +' : '↓ '}${pctChange.toStringAsFixed(1)}%',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Previous: ₹${prevPrice.toStringAsFixed(0)} / Quintal',
+                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              ),
+                              if (pctChange.abs() >= 5.0) ...[
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Icon(Icons.notifications_active, size: 14, color: pctChange >= 0 ? Colors.green.shade800 : Colors.red.shade800),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        'Price change ≥ 5% triggers automatic ±5% market alerts to relevant farmers & buyers.',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: pctChange >= 0 ? Colors.green.shade900 : Colors.red.shade900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
                       const Divider(height: 24),
                       // Key Metrics Summary
                       Container(
@@ -767,6 +836,10 @@ class _PriceColumn extends StatelessWidget {
             fontWeight: isFeatured ? FontWeight.bold : FontWeight.w600,
             color: color,
           ),
+        ),
+        const Text(
+          '/ Quintal',
+          style: TextStyle(fontSize: 10, color: AppColors.textMuted),
         ),
       ],
     );

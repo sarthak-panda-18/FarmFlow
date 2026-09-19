@@ -1,4 +1,6 @@
 const BuyerRequirement = require('../models/BuyerRequirement');
+const Crop = require('../models/Crop');
+const Notification = require('../models/Notification');
 
 /**
  * Helper to format requirement response
@@ -37,7 +39,7 @@ const createRequirement = async (req, res, next) => {
       cropName,
       variety,
       quantity,
-      quantityUnit = 'kg',
+      quantityUnit = 'quintal',
       offeredPrice,
       expectedPrice,
       requiredByDate,
@@ -71,12 +73,11 @@ const createRequirement = async (req, res, next) => {
       });
     }
 
-    const validUnits = ['kg', 'quintal', 'tonne'];
-    const unitLower = (quantityUnit || 'kg').toString().toLowerCase();
-    if (!validUnits.includes(unitLower)) {
+    const unitLower = (quantityUnit || 'quintal').toString().toLowerCase().trim();
+    if (unitLower !== 'quintal') {
       return res.status(400).json({
         success: false,
-        message: 'Unit must be one of: kg, quintal, tonne',
+        message: "Only 'quintal' is supported as the quantity unit. KG and other units are not supported.",
       });
     }
 
@@ -149,6 +150,34 @@ const createRequirement = async (req, res, next) => {
       notes: (notes || '').trim(),
       status: 'ACTIVE',
     });
+
+    // Check for matching active farmer crops and notify them (Future Match)
+    try {
+      const matchingCrops = await Crop.find({
+        commodity: new RegExp(`^${cropIdentifier.trim()}$`, 'i'),
+        status: 'AVAILABLE',
+      }).limit(10).lean();
+
+      for (const cropItem of matchingCrops) {
+        if (cropItem.farmerId) {
+          const alertKey = `FUTURE_MATCH_FARMER_${cropItem.farmerId}_${requirement._id}`;
+          const existingNotif = await Notification.findOne({ alertKey });
+          if (!existingNotif) {
+            await Notification.create({
+              userId: cropItem.farmerId,
+              recipientRole: 'FARMER',
+              type: 'MATCH_FOUND',
+              title: 'New Buyer Requirement Available',
+              message: `Good news! A Buyer matching your ${cropItem.commodity} crop is now available requiring ${requirement.quantity} Quintals.`,
+              crop: cropItem.commodity,
+              alertKey,
+            });
+          }
+        }
+      }
+    } catch (_) {
+      // Future match notification is non-blocking
+    }
 
     res.status(201).json({
       success: true,
@@ -322,14 +351,14 @@ const updateRequirement = async (req, res, next) => {
     }
 
     if (quantityUnit !== undefined) {
-      const validUnits = ['kg', 'quintal', 'tonne'];
-      if (!validUnits.includes(quantityUnit.toString().toLowerCase())) {
+      const unitLower = quantityUnit.toString().toLowerCase().trim();
+      if (unitLower !== 'quintal') {
         return res.status(400).json({
           success: false,
-          message: 'Unit must be one of: kg, quintal, tonne',
+          message: "Only 'quintal' is supported as the quantity unit.",
         });
       }
-      requirement.quantityUnit = quantityUnit.toString().toLowerCase();
+      requirement.quantityUnit = 'quintal';
     }
 
     if (offeredPrice !== undefined) {

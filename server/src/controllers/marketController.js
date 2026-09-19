@@ -1,4 +1,7 @@
 const MarketPrice = require('../models/MarketPrice');
+const Crop = require('../models/Crop');
+const BuyerRequirement = require('../models/BuyerRequirement');
+const Notification = require('../models/Notification');
 const { buildCommodityFilter } = require('../utils/commodityCategoryMapping');
 
 /**
@@ -482,11 +485,239 @@ const getCategoryPrices = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Get market price trends comparing Current vs Previous observation with ±5% threshold calculation
+ * @route   GET /api/markets/trends
+ * @access  Public
+ */
+const getMarketTrends = async (req, res, next) => {
+  try {
+    const { commodity, category, state, district, market } = req.query;
+    const filter = {};
+
+    if (commodity && commodity.trim()) {
+      const commFilter = buildCommodityFilter(commodity.trim());
+      if (commFilter) Object.assign(filter, commFilter);
+    } else if (category && category.trim()) {
+      const catFilter = buildCommodityFilter(category.trim());
+      if (catFilter) Object.assign(filter, catFilter);
+    }
+
+    if (state && state.trim()) {
+      filter.state = { $regex: new RegExp(`^${state.trim()}$`, 'i') };
+    }
+    if (district && district.trim()) {
+      filter.district = { $regex: new RegExp(`^${district.trim()}$`, 'i') };
+    }
+    if (market && market.trim()) {
+      filter.market = { $regex: new RegExp(`^${market.trim()}$`, 'i') };
+    }
+
+    // Get list of distinct commodities matching filter
+    const distinctCommodities = await MarketPrice.distinct('commodity', filter);
+
+    const trends = [];
+
+    for (const comm of distinctCommodities) {
+      const commQuery = { ...filter, commodity: comm };
+      // Fetch latest 2 chronological observations for this crop/market
+      const observations = await MarketPrice.find(commQuery)
+        .sort({ date: -1 })
+        .limit(2)
+        .lean();
+
+      if (observations.length === 0) continue;
+
+      const current = observations[0];
+      const previous = observations.length > 1 ? observations[1] : null;
+
+      const currentPrice = current.modalPrice;
+      const previousPrice = previous ? previous.modalPrice : currentPrice;
+
+      let percentageChange = 0;
+      if (previous && previousPrice > 0) {
+        percentageChange = Math.round(((currentPrice - previousPrice) / previousPrice) * 100 * 10) / 10;
+      }
+
+      const direction = percentageChange > 0 ? 'UP' : (percentageChange < 0 ? 'DOWN' : 'STABLE');
+      const isAlertThresholdMet = Math.abs(percentageChange) >= 5.0;
+
+      trends.push({
+        commodity: current.commodity,
+        variety: current.variety,
+        grade: current.grade,
+        market: current.market,
+        district: current.district,
+        state: current.state,
+        currentPrice,
+        previousPrice,
+        priceDifference: currentPrice - previousPrice,
+        percentageChange,
+        percentageChangeFormatted: `${percentageChange >= 0 ? '+' : ''}${percentageChange.toFixed(1)}%`,
+        direction,
+        isAlertThresholdMet,
+        unit: 'Quintal',
+        priceUnit: '₹ / Quintal',
+        currentDate: current.date ? current.date.toISOString().split('T')[0] : null,
+        previousDate: previous && previous.date ? previous.date.toISOString().split('T')[0] : null,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: trends.length,
+      data: trends,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Process & Trigger Market Price ±5% Alerts for relevant Farmers and Buyers
+ * @route   POST /api/markets/trigger-alerts
+ * @access  Public / Internal Cron
+ */
+const triggerMarketPriceAlerts = async (req, res, next) => {
+  try {
+    const { commodity } = req.body || {};
+    let commodities = [];
+
+    if (commodity && commodity.trim()) {
+      commodities = [commodity.trim()];
+    } else {
+      const [fComms, bComms] = await Promise.all([
+        Crop.find({ status: 'AVAILABLE' }).distinct('commodity'),
+        BuyerRequirement.find({ status: 'ACTIVE' }).distinct('commodity'),
+      ]);
+      commodities = Array.from(new Set([...fComms, ...bComms]));
+      if (commodities.length === 0) {
+        commodities = await MarketPrice.distinct('commodity');
+      }
+    }
+
+    const triggeredAlerts = [];
+
+    for (const comm of commodities) {
+      const markets = await MarketPrice.distinct('market', { commodity: comm });
+
+      for (const mkt of markets) {
+        const obs = await MarketPrice.find({ commodity: comm, market: mkt })
+          .sort({ date: -1 })
+          .limit(2)
+          .lean();
+
+        if (obs.length < 2) continue;
+
+        const current = obs[0];
+        const previous = obs[1];
+
+        const currPrice = current.modalPrice;
+        const prevPrice = previous.modalPrice;
+
+        if (!prevPrice || prevPrice <= 0) continue;
+
+        const pctChange = ((currPrice - prevPrice) / prevPrice) * 100;
+        const absPct = Math.abs(pctChange);
+
+        // THRESHOLD RULE: Strictly ±5% or more
+        if (absPct < 5.0) continue;
+
+        const formattedPct = `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(1)}%`;
+        const directionWord = pctChange > 0 ? 'increased' : 'decreased';
+        const dateStr = current.date ? current.date.toISOString().split('T')[0] : 'today';
+
+        // Idempotent alert key to prevent duplicate notifications
+        const alertKey = `MARKET_ALERT_${comm.toUpperCase()}_${mkt.toUpperCase()}_${dateStr}_${currPrice}`;
+
+        // Find relevant Farmers with active crops for this commodity
+        const relevantFarmers = await Crop.find({
+          commodity: new RegExp(`^${comm.trim()}$`, 'i'),
+          status: 'AVAILABLE',
+        }).distinct('farmerId');
+
+        // Find relevant Buyers with active requirements for this commodity
+        const relevantBuyers = await BuyerRequirement.find({
+          commodity: new RegExp(`^${comm.trim()}$`, 'i'),
+          status: 'ACTIVE',
+        }).distinct('buyerId');
+
+        const alertMessage = `${comm} market price ${directionWord} by ${absPct.toFixed(1)}%.\n\nCurrent market reference price:\n₹${currPrice.toLocaleString('en-IN')} / Quintal\n\nPrevious market reference price:\n₹${prevPrice.toLocaleString('en-IN')} / Quintal`;
+
+        // Dispatch to Farmers
+        for (const fId of relevantFarmers) {
+          const userAlertKey = `${alertKey}_FARMER_${fId}`;
+          const exists = await Notification.findOne({ alertKey: userAlertKey });
+          if (!exists) {
+            await Notification.create({
+              userId: fId,
+              recipientRole: 'FARMER',
+              type: 'MARKET_PRICE_ALERT',
+              title: `Market Alert: ${comm} ${formattedPct}`,
+              message: alertMessage,
+              crop: comm,
+              alertKey: userAlertKey,
+              metadata: {
+                commodity: comm,
+                market: mkt,
+                currentPrice: currPrice,
+                previousPrice: prevPrice,
+                percentageChange: pctChange,
+                direction: pctChange > 0 ? 'UP' : 'DOWN',
+                unit: 'Quintal',
+              },
+            });
+            triggeredAlerts.push({ userId: fId, role: 'FARMER', commodity: comm, percentageChange: formattedPct });
+          }
+        }
+
+        // Dispatch to Buyers
+        for (const bId of relevantBuyers) {
+          const userAlertKey = `${alertKey}_BUYER_${bId}`;
+          const exists = await Notification.findOne({ alertKey: userAlertKey });
+          if (!exists) {
+            await Notification.create({
+              userId: bId,
+              recipientRole: 'BUYER',
+              type: 'MARKET_PRICE_ALERT',
+              title: `Market Alert: ${comm} ${formattedPct}`,
+              message: alertMessage,
+              crop: comm,
+              alertKey: userAlertKey,
+              metadata: {
+                commodity: comm,
+                market: mkt,
+                currentPrice: currPrice,
+                previousPrice: prevPrice,
+                percentageChange: pctChange,
+                direction: pctChange > 0 ? 'UP' : 'DOWN',
+                unit: 'Quintal',
+              },
+            });
+            triggeredAlerts.push({ userId: bId, role: 'BUYER', commodity: comm, percentageChange: formattedPct });
+          }
+        }
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Processed market price alerts. Generated ${triggeredAlerts.length} notifications.`,
+      triggeredCount: triggeredAlerts.length,
+      alerts: triggeredAlerts,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getReferencePrice,
   getMarketPrices,
   getMarketPriceHistory,
   getCategoryPrices,
+  getMarketTrends,
+  triggerMarketPriceAlerts,
   searchMarkets,
   getMarketStats,
 };

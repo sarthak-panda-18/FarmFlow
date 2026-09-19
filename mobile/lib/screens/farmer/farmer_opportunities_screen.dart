@@ -109,6 +109,11 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            icon: const Icon(Icons.star_outline),
+            tooltip: 'Buyer Recommendations',
+            onPressed: () => context.push(AppConstants.routeFarmerRecommendations),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
             onPressed: _fetchOpportunities,
@@ -235,11 +240,55 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
       );
     }
 
+    final hasRecommendations = _opportunities.length >= 3;
+
     return ListView.builder(
       padding: const EdgeInsets.all(AppConstants.paddingMedium),
-      itemCount: _opportunities.length,
+      itemCount: _opportunities.length + (hasRecommendations ? 1 : 0),
       itemBuilder: (context, index) {
-        final item = _opportunities[index];
+        if (hasRecommendations && index == 0) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+              border: Border.all(color: const Color(0xFFBBF7D0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.star, color: Color(0xFF16A34A), size: 22),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '3+ Buyer Opportunities Available',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF166534)),
+                      ),
+                      Text(
+                        'Automated Net Value recommendation ready',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF166534)),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => context.push(AppConstants.routeFarmerRecommendations),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF16A34A),
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('View Best', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final item = _opportunities[hasRecommendations ? index - 1 : index];
         final isInitiator = item.initiatedBy == 'FARMER';
 
         return Card(

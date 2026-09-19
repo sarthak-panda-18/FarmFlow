@@ -1,4 +1,6 @@
 const Crop = require('../models/Crop');
+const BuyerRequirement = require('../models/BuyerRequirement');
+const Notification = require('../models/Notification');
 const { normalizeCropName } = require('../utils/normalizeCrop');
 
 /**
@@ -40,11 +42,11 @@ const createCrop = async (req, res, next) => {
       });
     }
 
-    const validUnits = ['kg', 'quintal', 'tonne'];
-    if (!validUnits.includes(quantityUnit.toLowerCase())) {
+    const unit = (quantityUnit || 'quintal').toString().toLowerCase().trim();
+    if (unit !== 'quintal') {
       return res.status(400).json({
         success: false,
-        message: 'Unit must be one of: kg, quintal, tonne',
+        message: "Only 'quintal' is supported as the quantity unit. KG and other units are not supported.",
       });
     }
 
@@ -84,6 +86,34 @@ const createCrop = async (req, res, next) => {
       description: (description || '').trim(),
       status: 'AVAILABLE',
     });
+
+    // Check for matching active buyer requirements and notify them (Future Match)
+    try {
+      const matchingReqs = await BuyerRequirement.find({
+        commodity: new RegExp(`^${commodity.trim()}$`, 'i'),
+        status: 'ACTIVE',
+      }).limit(10).lean();
+
+      for (const reqItem of matchingReqs) {
+        if (reqItem.buyerId) {
+          const alertKey = `FUTURE_MATCH_BUYER_${reqItem.buyerId}_${crop._id}`;
+          const existingNotif = await Notification.findOne({ alertKey });
+          if (!existingNotif) {
+            await Notification.create({
+              userId: reqItem.buyerId,
+              recipientRole: 'BUYER',
+              type: 'MATCH_FOUND',
+              title: 'New Farmer Crop Available',
+              message: `Good news! A Farmer matching your ${crop.commodity} requirement is now available with ${crop.quantity} Quintals.`,
+              crop: crop.commodity,
+              alertKey,
+            });
+          }
+        }
+      }
+    } catch (_) {
+      // Future match notification is non-blocking
+    }
 
     res.status(201).json({
       success: true,
@@ -296,14 +326,14 @@ const updateCrop = async (req, res, next) => {
     }
 
     if (quantityUnit !== undefined) {
-      const validUnits = ['kg', 'quintal', 'tonne'];
-      if (!validUnits.includes(quantityUnit.toLowerCase())) {
+      const unit = quantityUnit.toString().toLowerCase().trim();
+      if (unit !== 'quintal') {
         return res.status(400).json({
           success: false,
-          message: 'Unit must be one of: kg, quintal, tonne',
+          message: "Only 'quintal' is supported as the quantity unit.",
         });
       }
-      crop.quantityUnit = quantityUnit.toLowerCase();
+      crop.quantityUnit = 'quintal';
     }
 
     if (expectedPrice !== undefined) {

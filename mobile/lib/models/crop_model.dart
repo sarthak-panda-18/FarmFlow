@@ -66,7 +66,7 @@ class CropModel {
       variety: json['variety']?.toString(),
       grade: json['grade']?.toString(),
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
-      quantityUnit: json['quantityUnit']?.toString() ?? 'kg',
+      quantityUnit: json['quantityUnit']?.toString() ?? 'Quintal',
       expectedPrice: (json['expectedPrice'] as num?)?.toDouble(),
       harvestDate: parseDate(json['harvestDate']),
       state: json['state']?.toString() ?? '',

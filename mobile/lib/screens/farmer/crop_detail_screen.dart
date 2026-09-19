@@ -464,6 +464,29 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
 
                   const SizedBox(height: 20),
 
+                  // Primary Action: View Buyer Recommendations for this crop
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: const Color(0xFF16A34A),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppConstants.borderRadius),
+                        ),
+                      ),
+                      icon: const Icon(Icons.star_outline),
+                      label: const Text('View Buyer Recommendations (Net Value)'),
+                      onPressed: () {
+                        context.push(AppConstants.routeFarmerRecommendations, extra: _crop.id);
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
                   // Secondary Action: View Market Prices for this commodity
                   SizedBox(
                     width: double.infinity,

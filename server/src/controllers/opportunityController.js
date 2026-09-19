@@ -66,6 +66,9 @@ const expressInterest = async (req, res, next) => {
     }
 
     const price = offeredPrice !== undefined && offeredPrice !== null ? parseFloat(offeredPrice) : crop.expectedPrice;
+    const tCost = req.body.transportCost !== undefined ? Math.max(0, Number(req.body.transportCost) || 0) : 0;
+    const oCost = req.body.otherCosts !== undefined ? Math.max(0, Number(req.body.otherCosts) || 0) : 0;
+    const dist = req.body.distanceKm !== undefined ? Number(req.body.distanceKm) : null;
 
     const opportunity = await Opportunity.create({
       buyerId,
@@ -76,6 +79,9 @@ const expressInterest = async (req, res, next) => {
       quantity: crop.quantity,
       quantityUnit: crop.quantityUnit,
       offeredPrice: price,
+      transportCost: tCost,
+      otherCosts: oCost,
+      distanceKm: dist,
       initiatedBy: 'BUYER',
       status: 'PENDING',
       notes: (notes || '').trim(),
@@ -98,6 +104,37 @@ const expressInterest = async (req, res, next) => {
       status: 'UNREAD',
       isRead: false,
     });
+
+    // Check if 3+ buyers are now interested in this crop -> Trigger Recommendation Notification
+    const activeOpsCount = await Opportunity.countDocuments({
+      cropId: crop._id,
+      status: { $in: ['PENDING', 'INTERESTED', 'ACCEPTED'] },
+    });
+
+    if (activeOpsCount >= 3) {
+      // Check if we haven't already sent a recent recommendation notification for this threshold
+      const existingRecNotif = await Notification.findOne({
+        userId: crop.farmerId,
+        type: 'BUYER_RECOMMENDATION',
+        crop: crop.commodity,
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      });
+
+      if (!existingRecNotif) {
+        await Notification.create({
+          userId: crop.farmerId,
+          farmerId: crop.farmerId,
+          recipientRole: 'FARMER',
+          title: 'Buyer Recommendations Ready',
+          type: 'BUYER_RECOMMENDATION',
+          message: `${activeOpsCount} buyers are interested in your ${crop.commodity} crop. Review the recommended buyer based on expected net value.`,
+          crop: crop.commodity,
+          opportunityId: opportunity._id,
+          status: 'UNREAD',
+          isRead: false,
+        });
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -856,10 +893,15 @@ const acceptOpportunity = async (req, res, next) => {
         commodity: opportunity.commodity,
         crop: opportunity.commodity,
         quantity: opportunity.quantity,
-        quantityUnit: opportunity.quantityUnit || 'kg',
+        quantityUnit: 'quintal',
         agreedPrice: opportunity.offeredPrice,
         agreedPriceUnit: 'quintal',
-        status: 'CONFIRMED',
+        status: 'AGREEMENT_PENDING',
+        agreementStatus: 'AGREEMENT_PENDING',
+        farmerAccepted: false,
+        buyerAccepted: false,
+        agreementVersion: 1,
+        termsAcceptedVersion: 1,
         pickupLocation: {
           address: farmerAddress,
           latitude: pickupLat,
@@ -888,9 +930,9 @@ const acceptOpportunity = async (req, res, next) => {
       userId: recipientUserId,
       farmerId: recipientUserId,
       recipientRole,
-      title: 'Interest Accepted',
-      type: 'INTEREST_ACCEPTED',
-      message: `${acceptingName} accepted your interest in ${opportunity.commodity}. Deal is now confirmed!`,
+      title: 'Deal Agreement Created',
+      type: 'AGREEMENT_PENDING',
+      message: `${acceptingName} accepted your interest in ${opportunity.commodity}. Please review and accept the official FarmFlow Deal Agreement to confirm the deal.`,
       crop: opportunity.commodity,
       opportunityId: opportunity._id,
       dealId: deal ? deal._id : null,
@@ -900,10 +942,11 @@ const acceptOpportunity = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Opportunity accepted and deal confirmed successfully',
+      message: 'Opportunity accepted. Official Deal Agreement created for mutual review and confirmation.',
       data: {
         opportunity,
         dealId: deal ? deal._id.toString() : null,
+        agreementStatus: 'AGREEMENT_PENDING',
       },
     });
   } catch (error) {

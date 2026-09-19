@@ -445,6 +445,41 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                       ],
                     ),
                   ),
+                  if (isFarmer) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star, color: Color(0xFF16A34A), size: 18),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Net Value Recommendation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF166534))),
+                                Text('Compare with other interested buyers', style: TextStyle(fontSize: 11, color: Color(0xFF166534))),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              context.push(
+                                AppConstants.routeFarmerRecommendations,
+                                extra: op.cropId,
+                              );
+                            },
+                            child: const Text('Compare', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF166534))),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

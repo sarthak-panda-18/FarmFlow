@@ -36,11 +36,11 @@ const buyerRequirementSchema = new mongoose.Schema(
     },
     quantityUnit: {
       type: String,
-      required: [true, 'Quantity unit is required'],
       enum: {
-        values: ['kg', 'quintal', 'tonne'],
-        message: 'Unit must be one of: kg, quintal, tonne',
+        values: ['quintal'],
+        message: 'Only quintal is supported as quantity unit',
       },
+      default: 'quintal',
       lowercase: true,
       trim: true,
     },

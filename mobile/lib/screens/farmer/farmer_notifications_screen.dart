@@ -88,7 +88,22 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
       } catch (_) {}
     }
 
-    if (item.dealId != null && item.dealId!.isNotEmpty && mounted) {
+    if (!mounted) return;
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final isBuyer = auth.userRole == 'BUYER';
+
+    if (item.type.toUpperCase() == 'MARKET_PRICE_ALERT') {
+      if (mounted) {
+        await context.push(AppConstants.routeMarketPrices);
+        _fetchNotifications();
+      }
+    } else if (item.type.toUpperCase() == 'MATCH_FOUND') {
+      if (mounted) {
+        await context.push(isBuyer ? AppConstants.routeBuyerMatches : AppConstants.routeFarmerMatches);
+        _fetchNotifications();
+      }
+    } else if (item.dealId != null && item.dealId!.isNotEmpty && mounted) {
       final refreshed = await context.push(
         AppConstants.routeDealDetail,
         extra: item.dealId!,
@@ -111,6 +126,14 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
 
   IconData _getTypeIcon(String type) {
     switch (type.toUpperCase()) {
+      case 'MARKET_PRICE_ALERT':
+        return Icons.trending_up;
+      case 'MATCH_FOUND':
+        return Icons.hub_outlined;
+      case 'AGREEMENT_PENDING':
+        return Icons.gavel;
+      case 'AGREEMENT_ACCEPTED':
+        return Icons.how_to_reg;
       case 'DEAL_CREATED':
       case 'DEAL_CONFIRMED':
         return Icons.handshake;
@@ -145,14 +168,21 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
 
   Color _getTypeColor(String type) {
     switch (type.toUpperCase()) {
-      case 'DEAL_CREATED':
-      case 'INTEREST_RECEIVED':
-      case 'BUYER_INTEREST':
-        return const Color(0xFF2563EB); // Blue
+      case 'MARKET_PRICE_ALERT':
+        return const Color(0xFF0284C7); // Sky blue
+      case 'MATCH_FOUND':
+        return const Color(0xFF0D9488); // Teal
+      case 'AGREEMENT_PENDING':
+        return const Color(0xFFEAB308); // Amber/Yellow
+      case 'AGREEMENT_ACCEPTED':
       case 'DEAL_CONFIRMED':
       case 'PAYMENT_CONFIRMED':
       case 'INTEREST_ACCEPTED':
         return const Color(0xFF16A34A); // Green
+      case 'DEAL_CREATED':
+      case 'INTEREST_RECEIVED':
+      case 'BUYER_INTEREST':
+        return const Color(0xFF2563EB); // Blue
       case 'DEAL_CANCELLED':
       case 'PAYMENT_DISPUTED':
       case 'INTEREST_REJECTED':

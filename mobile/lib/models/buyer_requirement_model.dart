@@ -66,7 +66,7 @@ class BuyerRequirementModel {
       variety: json['variety']?.toString() ?? 'Not specified',
       grade: json['grade']?.toString() ?? 'Not specified',
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
-      quantityUnit: json['quantityUnit']?.toString() ?? 'kg',
+      quantityUnit: json['quantityUnit']?.toString() ?? 'Quintal',
       offeredPrice: (json['offeredPrice'] as num?)?.toDouble() ?? 0.0,
       requiredByDate: parseDate(json['requiredByDate']),
       state: json['state']?.toString() ?? '',

@@ -117,12 +117,17 @@ const createDealFromOpportunity = async (req, res, next) => {
       crop: opportunity.commodity || (cropDetails ? cropDetails.cropName : 'Crop'),
       variety: cropDetails ? cropDetails.variety || '' : '',
       quantity: opportunity.quantity,
-      quantityUnit: opportunity.quantityUnit || 'kg',
+      quantityUnit: 'quintal',
       agreedPrice: opportunity.offeredPrice,
       agreedPriceUnit: 'quintal',
       agreedDate: opportunity.updatedAt || new Date(),
       deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
-      status: 'CONFIRMED',
+      status: 'AGREEMENT_PENDING',
+      agreementStatus: 'AGREEMENT_PENDING',
+      farmerAccepted: false,
+      buyerAccepted: false,
+      agreementVersion: 1,
+      termsAcceptedVersion: 1,
       pickupLocation: {
         address: pickupAddr,
         latitude: pickupLat,
@@ -153,9 +158,9 @@ const createDealFromOpportunity = async (req, res, next) => {
     await Notification.create({
       userId: targetUserId,
       recipientRole: targetRole,
-      type: 'DEAL_CREATED',
-      title: 'Deal Created',
-      message: `${creatorName} created a new deal for ${newDeal.commodity} (${newDeal.quantity} ${newDeal.quantityUnit}).`,
+      type: 'AGREEMENT_PENDING',
+      title: 'Deal Agreement Created',
+      message: `${creatorName} created an Official Deal Agreement for ${newDeal.commodity} (${newDeal.quantity} Quintals). Please review and accept terms.`,
       crop: newDeal.commodity,
       dealId: newDeal._id,
       opportunityId: opportunity._id,
@@ -163,7 +168,7 @@ const createDealFromOpportunity = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Deal created successfully',
+      message: 'Official Deal Agreement created successfully in pending state',
       data: newDeal,
     });
   } catch (error) {
@@ -1016,11 +1021,426 @@ const rateDeal = async (req, res, next) => {
   }
 };
 
+/**
+ * Get Official Deal Agreement details and Terms & Conditions
+ * @route GET /api/deals/:id/agreement
+ * @access Private
+ */
+const getDealAgreement = async (req, res, next) => {
+  try {
+    const currentUserId = req.user.userId;
+    const deal = await Deal.findById(req.params.id)
+      .populate('farmerId', 'name phone location address city district state coordinates ratingStats')
+      .populate('buyerId', 'name phone location address city district state businessName coordinates ratingStats')
+      .lean();
+
+    if (!deal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Deal not found',
+      });
+    }
+
+    const farmerIdStr = deal.farmerId?._id?.toString() || deal.farmerId?.toString();
+    const buyerIdStr = deal.buyerId?._id?.toString() || deal.buyerId?.toString();
+
+    const isFarmer = farmerIdStr === currentUserId;
+    const isBuyer = buyerIdStr === currentUserId;
+    const isAdmin = req.user.role === 'ADMIN';
+
+    if (!isFarmer && !isBuyer && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized. You are not a party to this deal.',
+      });
+    }
+
+    const farmer = deal.farmerId || {};
+    const buyer = deal.buyerId || {};
+
+    const pLat = deal.pickupLocation?.latitude || farmer.coordinates?.latitude;
+    const pLng = deal.pickupLocation?.longitude || farmer.coordinates?.longitude;
+    const dLat = deal.deliveryLocation?.latitude || buyer.coordinates?.latitude;
+    const dLng = deal.deliveryLocation?.longitude || buyer.coordinates?.longitude;
+
+    const pickupMapsUrl = pLat && pLng ? `https://www.google.com/maps/search/?api=1&query=${pLat},${pLng}` : null;
+    const deliveryMapsUrl = dLat && dLng ? `https://www.google.com/maps/search/?api=1&query=${dLat},${dLng}` : null;
+
+    const termsAndConditions = [
+      '1. Both Farmer and Buyer agree to the crop and quantity specified in this agreement.',
+      '2. Both parties agree to the mutually agreed price shown in the agreement.',
+      '3. Both parties are responsible for following the agreed delivery/pickup details.',
+      '4. Any changes to the deal should be mutually agreed upon.',
+      '5. FarmFlow records the agreement between the parties but does not guarantee the quality, delivery, or external payment unless explicitly supported by a verified service.',
+      '6. Actual payment is handled between the Farmer and Buyer unless a genuine payment provider is integrated.',
+      '7. FarmFlow does not consider screenshots or user-entered payment claims as verified payment.',
+      '8. Both parties should review the agreement before accepting it.'
+    ];
+
+    const isFullyConfirmed = deal.agreementStatus === 'DEAL_CONFIRMED' || (deal.farmerAccepted && deal.buyerAccepted);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        dealId: deal._id.toString(),
+        agreementVersion: deal.agreementVersion || 1,
+        agreementStatus: deal.agreementStatus || 'AGREEMENT_PENDING',
+        dealStatus: deal.status,
+        farmerAccepted: Boolean(deal.farmerAccepted),
+        buyerAccepted: Boolean(deal.buyerAccepted),
+        farmerAcceptedAt: deal.farmerAcceptedAt,
+        buyerAcceptedAt: deal.buyerAcceptedAt,
+        grossDealValue: deal.totalAmount,
+        farmer: {
+          id: farmer._id ? farmer._id.toString() : farmerIdStr,
+          name: farmer.name || 'Farmer',
+          phone: farmer.phone || '',
+          location: deal.pickupLocation?.address || farmer.address || farmer.location || '',
+          hasAccepted: Boolean(deal.farmerAccepted),
+          acceptedAt: deal.farmerAcceptedAt,
+        },
+        buyer: {
+          id: buyer._id ? buyer._id.toString() : buyerIdStr,
+          name: buyer.name || 'Buyer',
+          businessName: buyer.businessName || '',
+          phone: buyer.phone || '',
+          location: deal.deliveryLocation?.address || buyer.address || buyer.location || '',
+          hasAccepted: Boolean(deal.buyerAccepted),
+          acceptedAt: deal.buyerAcceptedAt,
+        },
+        commodity: deal.commodity,
+        crop: deal.crop || deal.commodity,
+        variety: deal.variety || '',
+        quantity: deal.quantity,
+        unit: 'Quintal',
+        quantityUnit: 'Quintal',
+        agreedPrice: deal.agreedPrice,
+        priceUnit: '₹ / Quintal',
+        totalAmount: deal.totalAmount,
+        agreedDate: deal.agreedDate,
+        deliveryDate: deal.deliveryDate,
+        pickupLocation: {
+          address: deal.pickupLocation?.address || '',
+          latitude: pLat,
+          longitude: pLng,
+          mapsUrl: pickupMapsUrl,
+        },
+        deliveryLocation: {
+          address: deal.deliveryLocation?.address || '',
+          latitude: dLat,
+          longitude: dLng,
+          mapsUrl: deliveryMapsUrl,
+        },
+        distanceKm: deal.distanceKm,
+        transportRequired: deal.transportRequired !== false,
+        transportType: deal.transportType || 'Standard Road Transport',
+        transportCost: deal.transportCost || 0,
+        otherCosts: deal.otherCosts || 0,
+        estimatedNetReturn: deal.estimatedNetReturn || (deal.totalAmount - (deal.transportCost || 0) - (deal.otherCosts || 0)),
+        estimatedTotalBuyerCost: deal.estimatedTotalBuyerCost || (deal.totalAmount + (deal.transportCost || 0) + (deal.otherCosts || 0)),
+        termsAndConditions,
+        currentUserRole: isFarmer ? 'FARMER' : 'BUYER',
+        userHasAccepted: isFarmer ? Boolean(deal.farmerAccepted) : Boolean(deal.buyerAccepted),
+        isFullyConfirmed,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Server-Side Acceptance of Deal Agreement with Terms Checkbox Validation
+ * @route POST /api/deals/:id/agreement/accept
+ * @access Private
+ */
+const acceptDealAgreement = async (req, res, next) => {
+  try {
+    const currentUserId = req.user.userId;
+    const { agreeToTerms, hasReviewedAndAgreed, agreementVersion } = req.body;
+
+    const hasCheckedAgreement = agreeToTerms === true || agreeToTerms === 'true' || hasReviewedAndAgreed === true || hasReviewedAndAgreed === 'true';
+
+    if (!hasCheckedAgreement) {
+      return res.status(400).json({
+        success: false,
+        message: 'You must explicitly review and agree to the Terms & Conditions before accepting.',
+      });
+    }
+
+    const deal = await Deal.findById(req.params.id);
+    if (!deal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Deal not found',
+      });
+    }
+
+    const isFarmer = deal.farmerId.toString() === currentUserId;
+    const isBuyer = deal.buyerId.toString() === currentUserId;
+
+    if (!isFarmer && !isBuyer) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access Denied: You are not a registered party to this Deal.',
+      });
+    }
+
+    if (deal.status === 'CANCELLED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot accept an agreement for a cancelled deal.',
+      });
+    }
+
+    // Version mismatch check: Ensure user is accepting latest version
+    if (agreementVersion && parseInt(agreementVersion, 10) !== deal.agreementVersion) {
+      return res.status(409).json({
+        success: false,
+        message: `Agreement has been updated to Version ${deal.agreementVersion}. Please review and accept the latest terms.`,
+      });
+    }
+
+    if (isFarmer) {
+      if (deal.farmerAccepted) {
+        return res.status(400).json({
+          success: false,
+          message: 'You have already accepted this agreement version.',
+        });
+      }
+      deal.farmerAccepted = true;
+      deal.farmerAcceptedAt = new Date();
+    } else if (isBuyer) {
+      if (deal.buyerAccepted) {
+        return res.status(400).json({
+          success: false,
+          message: 'You have already accepted this agreement version.',
+        });
+      }
+      deal.buyerAccepted = true;
+      deal.buyerAcceptedAt = new Date();
+    }
+
+    // Determine mutual acceptance state
+    const bothAccepted = deal.farmerAccepted && deal.buyerAccepted;
+
+    if (bothAccepted) {
+      deal.agreementStatus = 'DEAL_CONFIRMED';
+      deal.status = 'DEAL_CONFIRMED';
+    } else if (deal.farmerAccepted) {
+      deal.agreementStatus = 'WAITING_FOR_BUYER';
+      deal.status = 'WAITING_FOR_BUYER';
+    } else if (deal.buyerAccepted) {
+      deal.agreementStatus = 'WAITING_FOR_FARMER';
+      deal.status = 'WAITING_FOR_FARMER';
+    }
+
+    await deal.save();
+
+    const recipientUserId = isFarmer ? deal.buyerId : deal.farmerId;
+    const recipientRole = isFarmer ? 'BUYER' : 'FARMER';
+    const actorRole = isFarmer ? 'Farmer' : 'Buyer';
+
+    if (bothAccepted) {
+      // Notify BOTH users of mutual confirmation
+      await Notification.create({
+        userId: deal.farmerId,
+        recipientRole: 'FARMER',
+        type: 'DEAL_CONFIRMED',
+        title: 'Deal Confirmed!',
+        message: `Mutual Agreement Confirmed! Both Farmer and Buyer have accepted terms for ${deal.commodity} (${deal.quantity} Quintals). Deal is now officially confirmed.`,
+        crop: deal.commodity,
+        dealId: deal._id,
+        opportunityId: deal.opportunityId,
+      });
+
+      await Notification.create({
+        userId: deal.buyerId,
+        recipientRole: 'BUYER',
+        type: 'DEAL_CONFIRMED',
+        title: 'Deal Confirmed!',
+        message: `Mutual Agreement Confirmed! Both Farmer and Buyer have accepted terms for ${deal.commodity} (${deal.quantity} Quintals). Deal is now officially confirmed.`,
+        crop: deal.commodity,
+        dealId: deal._id,
+        opportunityId: deal.opportunityId,
+      });
+    } else {
+      // Notify counterparty that one party has signed
+      await Notification.create({
+        userId: recipientUserId,
+        recipientRole,
+        type: 'AGREEMENT_ACCEPTED',
+        title: 'Agreement Accepted by Counterparty',
+        message: `${actorRole} accepted the Deal Agreement for ${deal.commodity} (${deal.quantity} Quintals). Please review and accept to complete deal confirmation.`,
+        crop: deal.commodity,
+        dealId: deal._id,
+        opportunityId: deal.opportunityId,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: bothAccepted
+        ? 'Mutual agreement complete! Deal is officially confirmed.'
+        : `Agreement accepted. Waiting for ${isFarmer ? 'Buyer' : 'Farmer'} acceptance.`,
+      data: {
+        dealId: deal._id.toString(),
+        agreementStatus: deal.agreementStatus,
+        status: deal.status,
+        farmerAccepted: deal.farmerAccepted,
+        farmerAcceptedAt: deal.farmerAcceptedAt,
+        buyerAccepted: deal.buyerAccepted,
+        buyerAcceptedAt: deal.buyerAcceptedAt,
+        agreementVersion: deal.agreementVersion,
+        bothAccepted,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Controlled update of deal agreement details (Increments version & resets acceptances)
+ * @route PATCH /api/deals/:id/agreement
+ * @access Private
+ */
+const updateDealAgreement = async (req, res, next) => {
+  try {
+    const currentUserId = req.user.userId;
+    const deal = await Deal.findById(req.params.id);
+
+    if (!deal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Deal not found',
+      });
+    }
+
+    const isFarmer = deal.farmerId.toString() === currentUserId;
+    const isBuyer = deal.buyerId.toString() === currentUserId;
+
+    if (!isFarmer && !isBuyer) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized. You are not a party to this deal.',
+      });
+    }
+
+    // Lock check: After both accept, deal fields are locked
+    if (deal.agreementStatus === 'DEAL_CONFIRMED' || deal.status === 'DEAL_CONFIRMED' || deal.status === 'COMPLETED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Deal is already mutually confirmed and locked against unauthorized modification.',
+      });
+    }
+
+    const {
+      agreedPrice,
+      quantity,
+      deliveryDate,
+      transportCost,
+      otherCosts,
+      transportRequired,
+      transportType,
+      pickupAddress,
+      deliveryAddress,
+    } = req.body;
+
+    let hasChanges = false;
+
+    if (agreedPrice !== undefined && Number(agreedPrice) !== deal.agreedPrice) {
+      deal.agreedPrice = Number(agreedPrice);
+      hasChanges = true;
+    }
+
+    if (quantity !== undefined && Number(quantity) !== deal.quantity) {
+      deal.quantity = Number(quantity);
+      hasChanges = true;
+    }
+
+    if (deliveryDate !== undefined) {
+      deal.deliveryDate = new Date(deliveryDate);
+      hasChanges = true;
+    }
+
+    if (transportCost !== undefined && Number(transportCost) !== deal.transportCost) {
+      deal.transportCost = Number(transportCost);
+      hasChanges = true;
+    }
+
+    if (otherCosts !== undefined && Number(otherCosts) !== deal.otherCosts) {
+      deal.otherCosts = Number(otherCosts);
+      hasChanges = true;
+    }
+
+    if (transportRequired !== undefined) {
+      deal.transportRequired = Boolean(transportRequired);
+      hasChanges = true;
+    }
+
+    if (transportType !== undefined) {
+      deal.transportType = transportType;
+      hasChanges = true;
+    }
+
+    if (pickupAddress !== undefined) {
+      deal.pickupLocation.address = pickupAddress;
+      hasChanges = true;
+    }
+
+    if (deliveryAddress !== undefined) {
+      deal.deliveryLocation.address = deliveryAddress;
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
+      // Invalidate old acceptance states and increment version
+      deal.farmerAccepted = false;
+      deal.buyerAccepted = false;
+      deal.farmerAcceptedAt = null;
+      deal.buyerAcceptedAt = null;
+      deal.agreementVersion = (deal.agreementVersion || 1) + 1;
+      deal.agreementStatus = 'AGREEMENT_PENDING';
+      deal.status = 'AGREEMENT_PENDING';
+
+      await deal.save();
+
+      // Notify counterparty of version update
+      const targetUserId = isFarmer ? deal.buyerId : deal.farmerId;
+      const targetRole = isFarmer ? 'BUYER' : 'FARMER';
+      const updaterName = isFarmer ? 'Farmer' : 'Buyer';
+
+      await Notification.create({
+        userId: targetUserId,
+        recipientRole: targetRole,
+        type: 'AGREEMENT_PENDING',
+        title: 'Deal Agreement Updated',
+        message: `${updaterName} updated the terms for ${deal.commodity} (Version ${deal.agreementVersion}). Prior acceptance has been reset. Please review and re-accept.`,
+        crop: deal.commodity,
+        dealId: deal._id,
+        opportunityId: deal.opportunityId,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Agreement updated. New version created and prior acceptances reset.',
+      data: deal,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createDealFromOpportunity,
   getFarmerDeals,
   getBuyerDeals,
   getDealById,
+  getDealAgreement,
+  acceptDealAgreement,
+  updateDealAgreement,
   updateDealStatus,
   updateDealLogistics,
   markDelivered,

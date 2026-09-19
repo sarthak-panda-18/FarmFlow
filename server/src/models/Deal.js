@@ -63,8 +63,10 @@ const dealSchema = new mongoose.Schema(
     },
     quantityUnit: {
       type: String,
-      default: 'kg',
+      enum: ['quintal'],
+      default: 'quintal',
       trim: true,
+      lowercase: true,
     },
     agreedPrice: {
       type: Number,
@@ -73,8 +75,10 @@ const dealSchema = new mongoose.Schema(
     },
     agreedPriceUnit: {
       type: String,
+      enum: ['quintal'],
       default: 'quintal',
       trim: true,
+      lowercase: true,
     },
     totalAmount: {
       type: Number,
@@ -90,10 +94,56 @@ const dealSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Official Deal Agreement Layer
+    agreementStatus: {
+      type: String,
+      enum: [
+        'AGREEMENT_PENDING',
+        'WAITING_FOR_BUYER',
+        'WAITING_FOR_FARMER',
+        'DEAL_CONFIRMED',
+        'CANCELLED',
+      ],
+      default: 'AGREEMENT_PENDING',
+      index: true,
+    },
+    farmerAccepted: {
+      type: Boolean,
+      default: false,
+    },
+    buyerAccepted: {
+      type: Boolean,
+      default: false,
+    },
+    farmerAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+    buyerAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+    agreementCreatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    agreementVersion: {
+      type: Number,
+      default: 1,
+    },
+    termsAcceptedVersion: {
+      type: Number,
+      default: 1,
+    },
+
     // Deal Lifecycle Status
     status: {
       type: String,
       enum: [
+        'AGREEMENT_PENDING',
+        'WAITING_FOR_BUYER',
+        'WAITING_FOR_FARMER',
+        'DEAL_CONFIRMED',
         'CONFIRMED',
         'PREPARING',
         'READY_FOR_PICKUP',
@@ -104,7 +154,7 @@ const dealSchema = new mongoose.Schema(
         'CANCELLED',
         'DISPUTED',
       ],
-      default: 'CONFIRMED',
+      default: 'AGREEMENT_PENDING',
       index: true,
     },
     cancellationReason: {
@@ -282,36 +332,16 @@ const dealSchema = new mongoose.Schema(
 );
 
 /**
- * Calculates Gross Value with proper unit conversion.
- * 1 Quintal = 100 kg
- * 1 Ton = 1000 kg = 10 Quintals
+ * Calculates Gross Value with Quintal agricultural unit standard.
+ * Both quantity (Quintal) and agreed price (₹ / Quintal) use Quintals.
+ * Gross Value = Quantity * Agreed Price
  */
 dealSchema.methods.calculateFinancials = function () {
   const qty = Number(this.quantity) || 0;
-  const unit = (this.quantityUnit || 'kg').toLowerCase();
   const price = Number(this.agreedPrice) || 0;
-  const priceUnit = (this.agreedPriceUnit || 'quintal').toLowerCase();
 
-  let gross = 0;
-  if (priceUnit === 'quintal') {
-    let qtyInQuintals = qty;
-    if (unit === 'kg') {
-      qtyInQuintals = qty / 100;
-    } else if (unit === 'ton' || unit === 'tonne') {
-      qtyInQuintals = qty * 10;
-    }
-    gross = qtyInQuintals * price;
-  } else if (priceUnit === 'kg') {
-    let qtyInKg = qty;
-    if (unit === 'quintal') {
-      qtyInKg = qty * 100;
-    } else if (unit === 'ton' || unit === 'tonne') {
-      qtyInKg = qty * 1000;
-    }
-    gross = qtyInKg * price;
-  } else {
-    gross = qty * price;
-  }
+  // Exact Quintal multiplication
+  const gross = Math.round(qty * price * 100) / 100;
 
   const transport = Number(this.transportCost) || 0;
   const other = Number(this.otherCosts) || 0;

@@ -482,6 +482,19 @@ class ApiService {
     return await post('/opportunities/$id/complete');
   }
 
+  // Farmer Buyer Recommendation APIs
+  Future<Response> getCropRecommendations(String cropId) async {
+    return await get('/recommendations/crop/$cropId');
+  }
+
+  Future<Response> getFarmerRecommendations() async {
+    return await get('/recommendations/farmer');
+  }
+
+  Future<Response> getOpportunityRecommendations(String opportunityId) async {
+    return await get('/recommendations/opportunity/$opportunityId');
+  }
+
   // Notifications APIs
   Future<Response> getNotifications({int page = 1, int limit = 20, String? status}) async {
     final params = <String, dynamic>{'page': page, 'limit': limit};
@@ -520,6 +533,37 @@ class ApiService {
 
   Future<Response> getDealById(String id) async {
     return await get('/deals/$id');
+  }
+
+  Future<Response> getDealAgreement(String id) async {
+    return await get('/deals/$id/agreement');
+  }
+
+  Future<Response> acceptDealAgreement(String id, {required bool agreeToTerms, int? agreementVersion}) async {
+    return await post('/deals/$id/agreement/accept', data: {
+      'agreeToTerms': agreeToTerms,
+      if (agreementVersion != null) 'agreementVersion': agreementVersion,
+    });
+  }
+
+  Future<Response> updateDealAgreement(String id, Map<String, dynamic> data) async {
+    return await patch('/deals/$id/agreement', data: data);
+  }
+
+  Future<Response> getMarketTrends({String? commodity, String? category, String? state, String? district, String? market}) async {
+    final query = <String, dynamic>{};
+    if (commodity != null) query['commodity'] = commodity;
+    if (category != null) query['category'] = category;
+    if (state != null) query['state'] = state;
+    if (district != null) query['district'] = district;
+    if (market != null) query['market'] = market;
+    return await get('/markets/trends', queryParameters: query);
+  }
+
+  Future<Response> triggerMarketPriceAlerts({String? commodity}) async {
+    final data = <String, dynamic>{};
+    if (commodity != null) data['commodity'] = commodity;
+    return await post('/markets/trigger-alerts', data: data);
   }
 
   Future<Response> updateDealStatus(String id, String status, {String? notes}) async {
