@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../models/match_model.dart';
@@ -18,6 +19,7 @@ class FarmerMatchesScreen extends StatefulWidget {
 class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
   final ApiService _apiService = ApiService();
   final LocationService _locationService = LocationService();
+  final NumberFormat _currencyFormatter = NumberFormat('#,##,###', 'en_IN');
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -45,14 +47,19 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
       );
 
       if (res.data != null && res.data['success'] == true) {
-        final List list = res.data['data'] ?? [];
+        final rawList = res.data['data'];
+        final List list = rawList is List ? rawList : [];
         setState(() {
-          _matches = list.map((m) => MatchModel.fromJson(m)).toList();
+          _matches = list
+              .whereType<Map<String, dynamic>>()
+              .map((m) => MatchModel.fromJson(m))
+              .toList();
           _isLoading = false;
         });
       } else {
         setState(() {
-          _errorMessage = res.data?['message'] ?? 'Failed to load matching buyer requirements';
+          _errorMessage = res.data?['message']?.toString() ??
+              'Failed to load matching buyer requirements';
           _isLoading = false;
         });
       }
@@ -64,22 +71,25 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
     }
   }
 
-  void _openGoogleMaps(MatchModel match) {
-    if (match.latitude != null && match.longitude != null) {
-      _locationService.openGoogleMaps(
-        latitude: match.latitude!,
-        longitude: match.longitude!,
-        label: '${match.buyerName} (Buyer Requirement)',
-      );
-    } else {
+  void _openGoogleMaps(MatchModel match) async {
+    final success = await _locationService.openGoogleMaps(
+      latitude: match.latitude,
+      longitude: match.longitude,
+      address: match.location,
+      label: (match.buyerName != null && match.buyerName!.isNotEmpty)
+          ? '${match.buyerName} (Delivery Location)'
+          : null,
+    );
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Buyer coordinates are not specified.')),
+        const SnackBar(content: Text('Unable to launch Google Maps location.')),
       );
     }
   }
 
   void _showExpressInterestDialog(MatchModel match) {
-    final priceController = TextEditingController(text: match.farmerExpectedPrice.toStringAsFixed(0));
+    final priceController = TextEditingController(
+        text: match.farmerExpectedPrice.toStringAsFixed(0));
     final notesController = TextEditingController();
 
     showDialog(
@@ -91,9 +101,23 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Buyer: ${match.buyerBusinessName?.isNotEmpty == true ? match.buyerBusinessName : match.buyerName}'),
-              Text('Required Qty: ${match.buyerRequiredQty} ${match.buyerUnit}'),
-              Text('Buyer Price: ₹${match.buyerExpectedPrice.toStringAsFixed(0)} / Quintal'),
+              Text(
+                'Buyer: ${match.buyerBusinessName?.isNotEmpty == true ? match.buyerBusinessName : match.buyerName}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                  'Required Qty: ${match.buyerRequiredQty.toStringAsFixed(0)} ${match.buyerUnit}'),
+              Text(
+                  'Buyer Offered: ₹${_currencyFormatter.format(match.buyerExpectedPrice)} / Quintal'),
+              if (match.isTransportAvailable && match.transportationCost != null)
+                Text(
+                    'Est. Transport: ₹${_currencyFormatter.format(match.transportationCost)} (${match.distanceKm?.toStringAsFixed(1) ?? "Nearby"} km)'),
+              Text(
+                'Expected Net Value: ₹${_currencyFormatter.format(match.netValue)} (₹${_currencyFormatter.format(match.netValuePerQ)}/Q)',
+                style: const TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.bold),
+              ),
               const Divider(height: 20),
               TextField(
                 controller: priceController,
@@ -134,7 +158,8 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Interest submitted successfully to Buyer!'),
+                        content:
+                            Text('Interest submitted successfully to Buyer!'),
                         backgroundColor: AppColors.success,
                       ),
                     );
@@ -144,7 +169,8 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
                 if (mounted) {
                   final msg = e.toString().replaceAll('Exception: ', '');
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(msg), backgroundColor: AppColors.error),
+                    SnackBar(
+                        content: Text(msg), backgroundColor: AppColors.error),
                   );
                 }
               }
@@ -185,7 +211,9 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
             color: Colors.white,
             child: Row(
               children: [
-                const Text('Max Distance: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const Text('Max Distance: ',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -197,11 +225,16 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
                           child: ChoiceChip(
                             label: Text('${d.toInt()} km'),
                             selected: isSelected,
-                            selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                            selectedColor:
+                                AppColors.primary.withValues(alpha: 0.15),
                             labelStyle: TextStyle(
                               fontSize: 11,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
                             ),
                             onSelected: (val) {
                               if (val) {
@@ -228,9 +261,14 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
                 children: [
                   Text(
                     '${_matches.length} Compatible Buyers Found',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: AppColors.textSecondary),
                   ),
-                  const Text('Ranked by Score & Distance', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                  const Text('Ranked by Net Value & ML Signals',
+                      style:
+                          TextStyle(fontSize: 11, color: AppColors.textMuted)),
                 ],
               ),
             ),
@@ -244,7 +282,8 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     if (_errorMessage != null) {
@@ -283,23 +322,29 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.person_search_outlined, size: 50, color: AppColors.primary),
+                child: const Icon(Icons.person_search_outlined,
+                    size: 50, color: AppColors.primary),
               ),
               const SizedBox(height: 20),
               const Text(
-                'No Buyer Found',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.textPrimary),
+                'No matching buyer requirements found.',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: AppColors.textPrimary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 10),
               const Text(
                 "We couldn't find a Buyer matching your crop, quantity, location and requirements right now.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+                style: TextStyle(
+                    color: AppColors.textSecondary, fontSize: 14, height: 1.4),
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF0FDF4),
                   borderRadius: BorderRadius.circular(20),
@@ -308,12 +353,16 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.notifications_active_outlined, size: 16, color: Color(0xFF16A34A)),
+                    Icon(Icons.notifications_active_outlined,
+                        size: 16, color: Color(0xFF16A34A)),
                     SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         "We'll notify you when a suitable Buyer becomes available.",
-                        style: TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            color: Color(0xFF15803D),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -329,18 +378,21 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
                     icon: const Icon(Icons.eco_outlined),
                     label: const Text('View My Crops'),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                     ),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
-                    onPressed: () => context.go(AppConstants.routeFarmerDashboard),
+                    onPressed: () =>
+                        context.go(AppConstants.routeFarmerDashboard),
                     icon: const Icon(Icons.dashboard_outlined),
                     label: const Text('Go to Dashboard'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                     ),
                   ),
                 ],
@@ -351,118 +403,185 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
       );
     }
 
+    final topMatch = _matches.first;
+
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       itemCount: _matches.length,
       itemBuilder: (context, index) {
         final match = _matches[index];
-        final scoreColor = _getScoreColor(match.matchScore);
+        final bool isFirst = index == 0;
 
-        return Card(
-          elevation: AppConstants.cardElevation,
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        if (isFirst) {
+          return _buildRecommendedBuyerCard(match);
+        }
+
+        return _buildSecondaryBuyerCard(match, topMatch);
+      },
+    );
+  }
+
+  /// Top-ranked Recommended Buyer Card with full Net Value Breakdown and Why This Buyer Reasons
+  Widget _buildRecommendedBuyerCard(MatchModel match) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary, width: 1.8),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppConstants.paddingMedium),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Banner: RECOMMENDED BUYER (RANK #1)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(14),
+                topRight: Radius.circular(14),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                const SizedBox(width: 6),
+                const Text(
+                  'RECOMMENDED BUYER (RANK #1)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${match.matchScore}% Match',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Row 1: Crop Title & Compatibility Score Badge
+                // Buyer Business & Location Details
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            match.commodity,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
+                            match.buyerBusinessName?.isNotEmpty == true
+                                ? match.buyerBusinessName!
+                                : match.buyerName ?? 'Verified Buyer',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
-                          Text(
-                            'Buyer: ${match.buyerBusinessName?.isNotEmpty == true ? match.buyerBusinessName : match.buyerName}',
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_outlined,
+                                  size: 14, color: AppColors.textMuted),
+                              const SizedBox(width: 3),
+                              Expanded(
+                                child: Text(
+                                  match.location,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: scoreColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: scoreColor.withValues(alpha: 0.4)),
+                    if (match.distanceKm != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0F2FE),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFBAE6FD)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.near_me,
+                                size: 12, color: Color(0xFF0284C7)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${match.distanceKm!.toStringAsFixed(1)} km',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0369A1),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${match.matchScore}% Match',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: scoreColor, fontSize: 13),
-                          ),
-                          Text(
-                            match.compatibility,
-                            style: TextStyle(color: scoreColor, fontSize: 10, fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                const Divider(height: 16),
-
-                // Row 2: Quantities & Distance
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _InfoColumn(
-                      label: 'Buyer Needed',
-                      value: '${match.buyerRequiredQty.toStringAsFixed(0)} ${match.buyerUnit}',
-                      subtext: match.farmerAvailableQty >= match.buyerRequiredQty ? '✓ Full Match' : '⚠ Partial',
-                      subtextColor: match.farmerAvailableQty >= match.buyerRequiredQty ? AppColors.success : AppColors.warning,
-                    ),
-                    _InfoColumn(
-                      label: 'Your Available',
-                      value: '${match.farmerAvailableQty.toStringAsFixed(0)} ${match.farmerUnit}',
-                    ),
-                    _InfoColumn(
-                      label: 'Distance',
-                      value: match.distanceKm != null ? '${match.distanceKm!.toStringAsFixed(1)} km' : 'Nearby',
-                      icon: Icons.near_me,
-                    ),
                   ],
                 ),
 
                 const SizedBox(height: 12),
 
-                // Row 3: Price Matrix Comparison
+                // Lot Demand vs Farmer Available Qty
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _PriceBox(
-                        label: 'Buyer Offered',
-                        price: '₹${match.buyerExpectedPrice.toStringAsFixed(0)}/Q',
-                        color: AppColors.secondary,
+                      Text(
+                        'Demand: ${match.buyerRequiredQty.toStringAsFixed(0)} Quintals',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
                       ),
-                      _PriceBox(
-                        label: 'Market Ref',
-                        price: '₹${match.marketReferencePrice.toStringAsFixed(0)}/Q',
-                        color: AppColors.textSecondary,
-                      ),
-                      _PriceBox(
-                        label: 'Your Price',
-                        price: '₹${match.farmerExpectedPrice.toStringAsFixed(0)}/Q',
-                        color: AppColors.primary,
+                      Text(
+                        'Available: ${match.farmerAvailableQty.toStringAsFixed(0)} Quintals',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
@@ -470,14 +589,200 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
 
                 const SizedBox(height: 12),
 
-                // Actions: Open in Google Maps & Express Interest
+                // Transparent Economic Breakdown Box
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildFinancialRow(
+                        label: 'Gross Selling Price',
+                        value:
+                            '₹${_currencyFormatter.format(match.sellingPrice)}',
+                        subtext:
+                            '₹${_currencyFormatter.format(match.unitPrice)} / Quintal',
+                        isBold: true,
+                        color: AppColors.textPrimary,
+                      ),
+                      const SizedBox(height: 6),
+                      _buildFinancialRow(
+                        label: 'Transportation Cost',
+                        value: match.isTransportAvailable &&
+                                match.transportationCost != null
+                            ? '- ₹${_currencyFormatter.format(match.transportationCost)}'
+                            : 'Not required / Direct pickup',
+                        subtext: match.distanceKm != null
+                            ? '(${match.distanceKm!.toStringAsFixed(1)} km @ ₹25/km)'
+                            : null,
+                        color: const Color(0xFFDC2626),
+                      ),
+                      if (match.otherCosts > 0) ...[
+                        const SizedBox(height: 6),
+                        _buildFinancialRow(
+                          label: 'Other Handling Costs',
+                          value:
+                              '- ₹${_currencyFormatter.format(match.otherCosts)}',
+                          color: const Color(0xFFDC2626),
+                        ),
+                      ],
+                      const Divider(height: 14, color: AppColors.border),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'EXPECTED NET VALUE',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              Text(
+                                'Highest Net Return for Farmer',
+                                style: TextStyle(
+                                    fontSize: 10, color: AppColors.textMuted),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '₹${_currencyFormatter.format(match.netValue)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 17,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              Text(
+                                '₹${_currencyFormatter.format(match.netValuePerQ)} / Quintal',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ML Price Benchmark Signal (if available)
+                if (match.mlPrediction != null &&
+                    match.mlPrediction!['available'] == true) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome,
+                            size: 14, color: Color(0xFF16A34A)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'ML Market Forecast: ${match.mlPrediction!['formattedPrice'] ?? "₹${match.mlPrediction!['predictedPrice']} / Q"} (${match.mlPrediction!['comparison'] == 'ABOVE_FORECAST' ? 'Buyer offers above benchmark' : 'Market benchmark'})',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF15803D),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // "WHY THIS BUYER?" Section
+                if (match.recommendationReasons.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFDCFCE7)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.check_circle_outline,
+                                size: 14, color: AppColors.primary),
+                            SizedBox(width: 4),
+                            Text(
+                              'WHY THIS BUYER?',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                                color: AppColors.primary,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        ...match.recommendationReasons.map(
+                          (reason) => Padding(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('✓ ',
+                                    style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12)),
+                                Expanded(
+                                  child: Text(
+                                    reason,
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textPrimary),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 12),
+
+                // Actions: Google Maps & Express Interest
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () => _openGoogleMaps(match),
                         icon: const Icon(Icons.map_outlined, size: 16),
-                        label: const Text('Open Map', style: TextStyle(fontSize: 12)),
+                        label: const Text('Open Map',
+                            style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -485,8 +790,13 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
                       child: ElevatedButton.icon(
                         onPressed: () => _showExpressInterestDialog(match),
                         icon: const Icon(Icons.send_rounded, size: 16),
-                        label: const Text('Express Interest', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                        label: const Text('Express Interest',
+                            style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
                       ),
                     ),
                   ],
@@ -494,8 +804,249 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
               ],
             ),
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  /// Secondary Matched Buyer Card (Rank #2, #3, etc.)
+  Widget _buildSecondaryBuyerCard(MatchModel match, MatchModel? topMatch) {
+    final scoreColor = _getScoreColor(match.matchScore);
+    final double diffVsTop =
+        topMatch != null ? topMatch.netValue - match.netValue : 0.0;
+
+    return Card(
+      elevation: AppConstants.cardElevation,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        side: const BorderSide(color: AppColors.border, width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppConstants.paddingMedium),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row 1: Rank Badge, Buyer Name, Score
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '#${match.rank}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              match.buyerBusinessName?.isNotEmpty == true
+                                  ? match.buyerBusinessName!
+                                  : match.buyerName ?? 'Verified Buyer',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: AppColors.textPrimary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              match.location,
+                              style: const TextStyle(
+                                  color: AppColors.textSecondary, fontSize: 11),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: scoreColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border:
+                        Border.all(color: scoreColor.withValues(alpha: 0.4)),
+                  ),
+                  child: Text(
+                    '${match.matchScore}% Match',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: scoreColor,
+                        fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+
+            const Divider(height: 14),
+
+            // Row 2: Distance, Demand Qty, Offered Price
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _InfoColumn(
+                  label: 'Demand Qty',
+                  value:
+                      '${match.buyerRequiredQty.toStringAsFixed(0)} ${match.buyerUnit}',
+                ),
+                _InfoColumn(
+                  label: 'Offered Rate',
+                  value:
+                      '₹${_currencyFormatter.format(match.buyerExpectedPrice)}/Q',
+                  color: AppColors.secondary,
+                ),
+                _InfoColumn(
+                  label: 'Distance',
+                  value: match.distanceKm != null
+                      ? '${match.distanceKm!.toStringAsFixed(1)} km'
+                      : 'Nearby',
+                  icon: Icons.near_me,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Financial summary box
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Expected Net Value',
+                          style: TextStyle(
+                              fontSize: 10, color: AppColors.textSecondary)),
+                      Text(
+                        '₹${_currencyFormatter.format(match.netValue)} (₹${_currencyFormatter.format(match.netValuePerQ)}/Q)',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                  if (diffVsTop > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '-₹${_currencyFormatter.format(diffVsTop)} vs #1',
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF92400E)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // Actions: Open Map & Express Interest
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openGoogleMaps(match),
+                    icon: const Icon(Icons.map_outlined, size: 14),
+                    label:
+                        const Text('Map', style: TextStyle(fontSize: 11)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showExpressInterestDialog(match),
+                    icon: const Icon(Icons.send_rounded, size: 14),
+                    label: const Text('Express Interest',
+                        style: TextStyle(fontSize: 11)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFinancialRow({
+    required String label,
+    required String value,
+    String? subtext,
+    bool isBold = false,
+    Color color = AppColors.textPrimary,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+                color: color,
+              ),
+            ),
+            if (subtext != null)
+              Text(
+                subtext,
+                style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -503,15 +1054,13 @@ class _FarmerMatchesScreenState extends State<FarmerMatchesScreen> {
 class _InfoColumn extends StatelessWidget {
   final String label;
   final String value;
-  final String? subtext;
-  final Color? subtextColor;
+  final Color? color;
   final IconData? icon;
 
   const _InfoColumn({
     required this.label,
     required this.value,
-    this.subtext,
-    this.subtextColor,
+    this.color,
     this.icon,
   });
 
@@ -520,37 +1069,29 @@ class _InfoColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        Text(label,
+            style:
+                const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
         const SizedBox(height: 2),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (icon != null) ...[Icon(icon, size: 14, color: AppColors.primary), const SizedBox(width: 2)],
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            if (icon != null) ...[
+              Icon(icon, size: 12, color: AppColors.primary),
+              const SizedBox(width: 2)
+            ],
+            Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: color ?? AppColors.textPrimary,
+              ),
+            ),
           ],
         ),
-        if (subtext != null)
-          Text(subtext!, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: subtextColor ?? AppColors.textSecondary)),
       ],
     );
   }
 }
 
-class _PriceBox extends StatelessWidget {
-  final String label;
-  final String price;
-  final Color color;
-
-  const _PriceBox({required this.label, required this.price, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-        const SizedBox(height: 2),
-        Text(price, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color)),
-      ],
-    );
-  }
-}

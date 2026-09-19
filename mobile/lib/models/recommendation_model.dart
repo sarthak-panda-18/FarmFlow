@@ -53,8 +53,10 @@ class BuyerRecommendation {
     Map<String, double>? coords;
     if (json['coordinates'] != null && json['coordinates'] is Map) {
       coords = {
-        'latitude': (json['coordinates']['latitude'] as num?)?.toDouble() ?? 0.0,
-        'longitude': (json['coordinates']['longitude'] as num?)?.toDouble() ?? 0.0,
+        'latitude':
+            (json['coordinates']['latitude'] as num?)?.toDouble() ?? 0.0,
+        'longitude':
+            (json['coordinates']['longitude'] as num?)?.toDouble() ?? 0.0,
       };
     }
 
@@ -81,7 +83,9 @@ class BuyerRecommendation {
       notes: json['notes']?.toString() ?? '',
       rank: (json['rank'] as num?)?.toInt() ?? 1,
       isRecommended: json['isRecommended'] == true,
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
     );
   }
 }
@@ -126,13 +130,19 @@ class CropRecommendationData {
   factory CropRecommendationData.fromJson(Map<String, dynamic> json) {
     final crop = json['crop'] as Map<String, dynamic>? ?? {};
     final rawBuyers = json['allBuyers'] as List? ?? [];
-    final buyersList = rawBuyers.map((item) => BuyerRecommendation.fromJson(item as Map<String, dynamic>)).toList();
+    final buyersList = rawBuyers
+        .map((item) =>
+            BuyerRecommendation.fromJson(item as Map<String, dynamic>))
+        .toList();
 
     BuyerRecommendation? recBuyer;
     if (json['recommendedBuyer'] != null && json['recommendedBuyer'] is Map) {
-      recBuyer = BuyerRecommendation.fromJson(json['recommendedBuyer'] as Map<String, dynamic>);
-    } else if (buyersList.isNotEmpty && json['isRecommendationActive'] == true) {
-      recBuyer = buyersList.firstWhere((b) => b.isRecommended, orElse: () => buyersList.first);
+      recBuyer = BuyerRecommendation.fromJson(
+          json['recommendedBuyer'] as Map<String, dynamic>);
+    } else if (buyersList.isNotEmpty &&
+        json['isRecommendationActive'] == true) {
+      recBuyer = buyersList.firstWhere((b) => b.isRecommended,
+          orElse: () => buyersList.first);
     }
 
     final rawReasons = json['reasons'] as List? ?? [];
@@ -141,16 +151,19 @@ class CropRecommendationData {
     return CropRecommendationData(
       cropId: crop['id']?.toString() ?? crop['_id']?.toString() ?? '',
       commodity: crop['commodity']?.toString() ?? '',
-      cropName: crop['cropName']?.toString() ?? crop['commodity']?.toString() ?? '',
+      cropName:
+          crop['cropName']?.toString() ?? crop['commodity']?.toString() ?? '',
       variety: crop['variety']?.toString() ?? '',
       quantity: (crop['quantity'] as num?)?.toDouble() ?? 0.0,
       quantityUnit: crop['quantityUnit']?.toString().toLowerCase() ?? 'quintal',
       expectedPrice: (crop['expectedPrice'] as num?)?.toDouble() ?? 0.0,
       status: crop['status']?.toString() ?? 'AVAILABLE',
       location: crop['location']?.toString() ?? '',
-      interestedBuyersCount: (json['interestedBuyersCount'] as num?)?.toInt() ?? buyersList.length,
+      interestedBuyersCount:
+          (json['interestedBuyersCount'] as num?)?.toInt() ?? buyersList.length,
       isRecommendationActive: json['isRecommendationActive'] == true,
-      recommendationThreshold: (json['recommendationThreshold'] as num?)?.toInt() ?? 3,
+      recommendationThreshold:
+          (json['recommendationThreshold'] as num?)?.toInt() ?? 3,
       recommendedBuyer: recBuyer,
       explanation: json['explanation']?.toString() ?? '',
       reasons: reasonsList,

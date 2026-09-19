@@ -4,6 +4,8 @@ import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../models/crop_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/farm_badge.dart';
+import '../../widgets/farm_card.dart';
 
 class AddCropScreen extends StatefulWidget {
   final CropModel? initialCrop;
@@ -32,7 +34,8 @@ class _AddCropScreenState extends State<AddCropScreen> {
   String? _selectedVariety;
   final TextEditingController _quantityController = TextEditingController();
   String _selectedUnit = 'quintal';
-  final TextEditingController _expectedPriceController = TextEditingController();
+  final TextEditingController _expectedPriceController =
+      TextEditingController();
   DateTime? _selectedHarvestDate;
   String? _selectedState;
   String? _selectedDistrict;
@@ -43,6 +46,10 @@ class _AddCropScreenState extends State<AddCropScreen> {
   bool _isLoadingMarketRate = false;
   Map<String, dynamic>? _marketRateData;
   bool _marketRateUnavailable = false;
+
+  // ML Price Prediction state
+  bool _isLoadingMlRate = false;
+  Map<String, dynamic>? _mlRateData;
 
   bool get _isEditMode => widget.initialCrop != null;
 
@@ -62,9 +69,10 @@ class _AddCropScreenState extends State<AddCropScreen> {
     _selectedVariety = crop.variety;
     _quantityController.text = crop.quantity.toString();
     _selectedUnit = crop.quantityUnit;
-    _expectedPriceController.text = (crop.expectedPrice != null && crop.expectedPrice! > 0)
-        ? crop.expectedPrice!.toString()
-        : '';
+    _expectedPriceController.text =
+        (crop.expectedPrice != null && crop.expectedPrice! > 0)
+            ? crop.expectedPrice!.toString()
+            : '';
     _selectedHarvestDate = crop.harvestDate;
     _selectedState = crop.state;
     _selectedDistrict = crop.district;
@@ -106,9 +114,7 @@ class _AddCropScreenState extends State<AddCropScreen> {
       if (_selectedState != null) {
         _onStateChanged(_selectedState, isInit: true);
       }
-    } catch (_) {
-      // Handled gracefully
-    }
+    } catch (_) {}
   }
 
   Future<void> _fetchMarketRate() async {
@@ -118,6 +124,8 @@ class _AddCropScreenState extends State<AddCropScreen> {
         _marketRateData = null;
         _marketRateUnavailable = false;
         _isLoadingMarketRate = false;
+        _mlRateData = null;
+        _isLoadingMlRate = false;
       });
       return;
     }
@@ -128,6 +136,8 @@ class _AddCropScreenState extends State<AddCropScreen> {
       _marketRateData = null;
     });
 
+    _fetchMlRate();
+
     try {
       final res = await _apiService.getReferenceMarketPrice(
         commodity: comm,
@@ -137,45 +147,85 @@ class _AddCropScreenState extends State<AddCropScreen> {
       );
 
       if (mounted) {
-        if (res.data != null && res.data['success'] == true && res.data['data'] != null) {
+        if (res.data != null &&
+            res.data['success'] == true &&
+            res.data['data'] != null) {
           setState(() {
             _marketRateData = res.data['data'];
-            _marketRateUnavailable = false;
             _isLoadingMarketRate = false;
+            _marketRateUnavailable = false;
           });
         } else {
           setState(() {
-            _marketRateData = null;
-            _marketRateUnavailable = true;
             _isLoadingMarketRate = false;
+            _marketRateUnavailable = true;
           });
         }
       }
     } catch (_) {
       if (mounted) {
         setState(() {
-          _marketRateData = null;
-          _marketRateUnavailable = true;
           _isLoadingMarketRate = false;
+          _marketRateUnavailable = true;
         });
       }
     }
   }
 
-  Future<void> _onCommodityChanged(String? commodity, {bool isInit = false}) async {
-    if (!isInit) {
-      setState(() {
-        _selectedCommodity = commodity;
-        _selectedVariety = null;
-        if (commodity != null && _cropNameController.text.isEmpty) {
-          _cropNameController.text = commodity;
+  Future<void> _fetchMlRate() async {
+    final comm = _selectedCommodity ?? _cropNameController.text.trim();
+    if (comm.isEmpty) return;
+
+    setState(() {
+      _isLoadingMlRate = true;
+      _mlRateData = null;
+    });
+
+    try {
+      final res = await _apiService.getMarketPrediction(
+        commodity: comm,
+        state: _selectedState,
+        district: _selectedDistrict,
+        market: _selectedMarket,
+      );
+
+      if (mounted) {
+        if (res.data != null &&
+            res.data['success'] == true &&
+            res.data['data'] != null) {
+          setState(() {
+            _mlRateData = res.data['data'];
+            _isLoadingMlRate = false;
+          });
+        } else {
+          setState(() {
+            _isLoadingMlRate = false;
+          });
         }
-      });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoadingMlRate = false;
+        });
+      }
     }
+  }
+
+  Future<void> _onCommodityChanged(String? commodity,
+      {bool isInit = false}) async {
+    if (commodity == null) return;
+    setState(() {
+      _selectedCommodity = commodity;
+      if (!isInit && _cropNameController.text.isEmpty) {
+        _cropNameController.text = commodity;
+      }
+      if (!isInit) {
+        _selectedVariety = null;
+      }
+    });
 
     _fetchMarketRate();
-
-    if (commodity == null || commodity.isEmpty) return;
 
     try {
       final res = await _apiService.getVarieties(commodity: commodity);
@@ -188,19 +238,18 @@ class _AddCropScreenState extends State<AddCropScreen> {
   }
 
   Future<void> _onStateChanged(String? state, {bool isInit = false}) async {
-    if (!isInit) {
-      setState(() {
-        _selectedState = state;
+    if (state == null) return;
+    setState(() {
+      _selectedState = state;
+      if (!isInit) {
         _selectedDistrict = null;
         _selectedMarket = null;
         _districts = [];
         _markets = [];
-      });
-    }
+      }
+    });
 
     _fetchMarketRate();
-
-    if (state == null || state.isEmpty) return;
 
     try {
       final res = await _apiService.getDistricts(state: state);
@@ -209,27 +258,22 @@ class _AddCropScreenState extends State<AddCropScreen> {
           _districts = List<String>.from(res.data['data']);
         });
       }
-      if (_selectedDistrict != null) {
-        _onDistrictChanged(_selectedDistrict, isInit: true);
-      }
     } catch (_) {}
   }
 
-  Future<void> _onDistrictChanged(String? district, {bool isInit = false}) async {
-    if (!isInit) {
-      setState(() {
-        _selectedDistrict = district;
-        _selectedMarket = null;
-        _markets = [];
-      });
-    }
+  Future<void> _onDistrictChanged(String? district) async {
+    if (district == null) return;
+    setState(() {
+      _selectedDistrict = district;
+      _selectedMarket = null;
+      _markets = [];
+    });
 
     _fetchMarketRate();
 
-    if (district == null || district.isEmpty) return;
-
     try {
-      final res = await _apiService.getMarkets(state: _selectedState, district: district);
+      final res = await _apiService.getMarkets(
+          state: _selectedState, district: district);
       if (mounted && res.data != null && res.data['success'] == true) {
         setState(() {
           _markets = List<String>.from(res.data['data']);
@@ -264,7 +308,7 @@ class _AddCropScreenState extends State<AddCropScreen> {
 
     if (_selectedHarvestDate == null) {
       setState(() {
-        _errorMessage = 'Please select a harvest date';
+        _errorMessage = 'Please select an expected harvest date';
       });
       return;
     }
@@ -299,7 +343,10 @@ class _AddCropScreenState extends State<AddCropScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_isEditMode ? 'Crop updated successfully' : 'Crop added successfully')),
+        SnackBar(
+            content: Text(_isEditMode
+                ? 'Crop updated successfully'
+                : 'Crop added successfully')),
       );
       context.pop(true);
     } catch (e) {
@@ -315,107 +362,126 @@ class _AddCropScreenState extends State<AddCropScreen> {
     final commName = _selectedCommodity ?? _cropNameController.text.trim();
     if (commName.isEmpty) return const SizedBox.shrink();
 
-    return Card(
-      elevation: 0,
-      color: const Color(0xFFF0F9FF),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-        side: const BorderSide(color: Color(0xFFBAE6FD)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFBBF7D0)),
       ),
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(AppConstants.paddingMedium),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.trending_up, color: AppColors.primary, size: 18),
+                  SizedBox(width: 6),
+                  Text(
+                    'Market Reference Price',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: AppColors.primaryDark),
+                  ),
+                ],
+              ),
+              FarmBadge(
+                  label: commName, type: FarmBadgeType.primary, fontSize: 10),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_isLoadingMarketRate)
+            const Row(
+              children: [
+                SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.primary)),
+                SizedBox(width: 10),
+                Text('Fetching live AGMARKNET rate...',
+                    style: TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary)),
+              ],
+            )
+          else if (_marketRateUnavailable || _marketRateData == null)
+            const Text(
+                'Market price data currently unavailable for this mandi.',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted))
+          else ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.trending_up, color: Color(0xFF0284C7), size: 20),
-                    const SizedBox(width: 8),
+                    const Text('Current Modal Rate',
+                        style: TextStyle(
+                            fontSize: 11, color: AppColors.textSecondary)),
                     Text(
-                      'Market Reference Price',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF0369A1),
-                          ),
+                      '₹${(_marketRateData!['modalPrice'] as num).toStringAsFixed(0)} / ${_marketRateData!['unit'] ?? 'Quintal'}',
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary),
                     ),
                   ],
                 ),
-                Chip(
-                  label: Text(
-                    commName,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0369A1)),
+                if (_marketRateData!['minPrice'] != null &&
+                    _marketRateData!['maxPrice'] != null)
+                  Text(
+                    'Range: ₹${_marketRateData!['minPrice']} - ₹${_marketRateData!['maxPrice']}',
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary),
                   ),
-                  backgroundColor: const Color(0xFFE0F2FE),
-                  visualDensity: VisualDensity.compact,
-                ),
               ],
             ),
-            const Divider(height: 16, color: Color(0xFFBAE6FD)),
-            if (_isLoadingMarketRate)
+            if (_isLoadingMlRate) ...[
+              const SizedBox(height: 8),
               const Row(
                 children: [
-                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0284C7))),
-                  SizedBox(width: 12),
-                  Text('Fetching AGMARKNET market rate...', style: TextStyle(fontSize: 13, color: Color(0xFF0369A1))),
-                ],
-              )
-            else if (_marketRateUnavailable || _marketRateData == null)
-              const Row(
-                children: [
-                  Icon(Icons.info_outline, size: 18, color: AppColors.textMuted),
+                  SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.secondary)),
                   SizedBox(width: 8),
-                  Text('Market price unavailable', style: TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w500)),
+                  Text('Calculating ML predicted price...',
+                      style: TextStyle(
+                          fontSize: 11, color: AppColors.textSecondary)),
                 ],
-              )
-            else ...[
+              ),
+            ] else if (_mlRateData != null &&
+                _mlRateData!['predictedPrice'] != null) ...[
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Current Market Rate',
-                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '₹${(_marketRateData!['modalPrice'] as num).toStringAsFixed(0)} / ${_marketRateData!['unit'] ?? 'Quintal'}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0284C7),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'ML Forecast Rate: ₹${(_mlRateData!['predictedPrice'] as num).toStringAsFixed(0)} / Quintal',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary),
                   ),
-                  if (_marketRateData!['minPrice'] != null && _marketRateData!['maxPrice'] != null)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Text('Range', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                        Text(
-                          '₹${(_marketRateData!['minPrice'] as num).toStringAsFixed(0)} - ₹${(_marketRateData!['maxPrice'] as num).toStringAsFixed(0)}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-                        ),
-                      ],
+                  if (_mlRateData!['predictedChangePercent'] != null)
+                    FarmBadge(
+                      label:
+                          '${(_mlRateData!['predictedChangePercent'] as num) >= 0 ? "+" : ""}${(_mlRateData!['predictedChangePercent'] as num).toStringAsFixed(1)}%',
+                      type: (_mlRateData!['predictedChangePercent'] as num) >= 0
+                          ? FarmBadgeType.success
+                          : FarmBadgeType.error,
+                      fontSize: 10,
                     ),
                 ],
               ),
-              if (_marketRateData!['market'] != null && (_marketRateData!['market'] as String).isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  'Source: ${_marketRateData!['market']} Market (${_marketRateData!['district'] ?? ''}, ${_marketRateData!['state'] ?? ''})',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textMuted, fontStyle: FontStyle.italic),
-                ),
-              ],
             ],
           ],
-        ),
+        ],
       ),
     );
   }
@@ -441,18 +507,22 @@ class _AddCropScreenState extends State<AddCropScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      color: AppColors.errorLight,
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: AppColors.error),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: AppColors.error),
+                        const Icon(Icons.error_outline,
+                            color: AppColors.error, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                color: AppColors.errorDark,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13),
                           ),
                         ),
                       ],
@@ -461,262 +531,313 @@ class _AddCropScreenState extends State<AddCropScreen> {
                   const SizedBox(height: 16),
                 ],
 
-                // 1. Commodity Selection
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedCommodity,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Commodity *',
-                    prefixIcon: Icon(Icons.grass),
-                  ),
-                  items: _commodities.map((c) {
-                    return DropdownMenuItem<String>(value: c, child: Text(c));
-                  }).toList(),
-                  onChanged: _isSubmitting ? null : (val) => _onCommodityChanged(val),
-                  validator: (val) {
-                    if ((val == null || val.isEmpty) && _cropNameController.text.trim().isEmpty) {
-                      return 'Please select or enter a commodity';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Market Reference Price Display Card
-                _buildMarketRateCard(),
-
-                // Crop Name
-                TextFormField(
-                  controller: _cropNameController,
-                  enabled: !_isSubmitting,
-                  decoration: const InputDecoration(
-                    labelText: 'Crop Name *',
-                    prefixIcon: Icon(Icons.label_outlined),
-                  ),
-                  onChanged: (_) => _fetchMarketRate(),
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'Crop name is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Variety Field (Grade REMOVED)
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedVariety,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Variety (Optional)',
-                    prefixIcon: Icon(Icons.category_outlined),
-                  ),
-                  items: (_varieties.isEmpty ? ['Other', 'Local', 'Hybrid', 'Desi'] : _varieties).map((v) {
-                    return DropdownMenuItem<String>(value: v, child: Text(v, overflow: TextOverflow.ellipsis));
-                  }).toList(),
-                  onChanged: _isSubmitting
-                      ? null
-                      : (val) {
-                          setState(() {
-                            _selectedVariety = val;
-                          });
-                        },
-                ),
-                const SizedBox(height: 16),
-
-                // Quantity & Unit Row
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: _quantityController,
-                        enabled: !_isSubmitting,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                // SECTION 1: CROP DETAILS (White Card)
+                FarmCard(
+                  variant: FarmCardVariant.white,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.grass, color: AppColors.primary, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            '1. Crop Information',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 18),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedCommodity,
+                        isExpanded: true,
                         decoration: const InputDecoration(
-                          labelText: 'Quantity (Quintals) *',
-                          prefixIcon: Icon(Icons.scale_outlined),
-                          hintText: 'e.g. 50',
+                          labelText: 'Commodity *',
+                          prefixIcon: Icon(Icons.eco_outlined, size: 20),
                         ),
+                        items: _commodities
+                            .map((c) =>
+                                DropdownMenuItem(value: c, child: Text(c)))
+                            .toList(),
+                        onChanged: _isSubmitting
+                            ? null
+                            : (val) => _onCommodityChanged(val),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Required';
-                          }
-                          final d = double.tryParse(val.trim());
-                          if (d == null || d <= 0) {
-                            return 'Must be > 0';
+                          if ((val == null || val.isEmpty) &&
+                              _cropNameController.text.trim().isEmpty) {
+                            return 'Please select a commodity';
                           }
                           return null;
                         },
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedUnit,
+                      const SizedBox(height: 12),
+                      _buildMarketRateCard(),
+                      TextFormField(
+                        controller: _cropNameController,
+                        enabled: !_isSubmitting,
                         decoration: const InputDecoration(
-                          labelText: 'Unit *',
+                          labelText: 'Listing Title / Crop Name *',
+                          prefixIcon: Icon(Icons.title, size: 20),
                         ),
-                        items: const [
-                          DropdownMenuItem(value: 'quintal', child: Text('Quintal')),
+                        onChanged: (_) => _fetchMarketRate(),
+                        validator: (val) => (val == null || val.trim().isEmpty)
+                            ? 'Required'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedVariety,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Variety (Optional)',
+                          prefixIcon: Icon(Icons.category_outlined, size: 20),
+                        ),
+                        items: (_varieties.isEmpty
+                                ? ['Other', 'Local', 'Hybrid', 'Desi']
+                                : _varieties)
+                            .map((v) => DropdownMenuItem(
+                                value: v,
+                                child:
+                                    Text(v, overflow: TextOverflow.ellipsis)))
+                            .toList(),
+                        onChanged: _isSubmitting
+                            ? null
+                            : (val) => setState(() => _selectedVariety = val),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // SECTION 2: QUANTITY & HARVEST (White Card)
+                FarmCard(
+                  variant: FarmCardVariant.white,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.scale, color: AppColors.primary, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            '2. Quantity & Expected Price',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary),
+                          ),
                         ],
+                      ),
+                      const Divider(height: 18),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextFormField(
+                              controller: _quantityController,
+                              enabled: !_isSubmitting,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Quantity *',
+                                prefixIcon:
+                                    Icon(Icons.scale_outlined, size: 20),
+                                hintText: 'e.g. 50',
+                              ),
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) {
+                                  return 'Required';
+                                }
+                                final d = double.tryParse(val.trim());
+                                if (d == null || d <= 0) return '> 0';
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _selectedUnit,
+                              decoration:
+                                  const InputDecoration(labelText: 'Unit *'),
+                              items: const [
+                                DropdownMenuItem(
+                                    value: 'quintal', child: Text('Quintal'))
+                              ],
+                              onChanged: _isSubmitting
+                                  ? null
+                                  : (val) =>
+                                      setState(() => _selectedUnit = val!),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _expectedPriceController,
+                        enabled: !_isSubmitting,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Expected Price (₹ / Quintal)',
+                          prefixIcon: Icon(Icons.currency_rupee, size: 20),
+                          hintText: 'e.g. 2400',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: _isSubmitting ? null : _selectHarvestDate,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Harvest / Availability Date *',
+                            prefixIcon:
+                                Icon(Icons.calendar_today_outlined, size: 20),
+                          ),
+                          child: Text(
+                            _selectedHarvestDate != null
+                                ? _selectedHarvestDate!
+                                    .toIso8601String()
+                                    .split('T')[0]
+                                : 'Select Date',
+                            style: TextStyle(
+                              color: _selectedHarvestDate != null
+                                  ? AppColors.textPrimary
+                                  : AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // SECTION 3: LOCATION DETAILS (White Card)
+                FarmCard(
+                  variant: FarmCardVariant.white,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.location_on,
+                              color: AppColors.primary, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            '3. Farm Location & Mandi',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 18),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedState,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'State *',
+                          prefixIcon: Icon(Icons.map_outlined, size: 20),
+                        ),
+                        items: _states
+                            .map((s) =>
+                                DropdownMenuItem(value: s, child: Text(s)))
+                            .toList(),
+                        onChanged: _isSubmitting
+                            ? null
+                            : (val) => _onStateChanged(val),
+                        validator: (val) => (val == null || val.isEmpty)
+                            ? 'State is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedDistrict,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'District *',
+                          prefixIcon:
+                              Icon(Icons.location_city_outlined, size: 20),
+                        ),
+                        items: _districts
+                            .map((d) =>
+                                DropdownMenuItem(value: d, child: Text(d)))
+                            .toList(),
+                        onChanged: _isSubmitting
+                            ? null
+                            : (val) => _onDistrictChanged(val),
+                        validator: (val) => (val == null || val.isEmpty)
+                            ? 'District is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedMarket,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Nearest Mandi / APMC Yard (Optional)',
+                          prefixIcon: Icon(Icons.storefront_outlined, size: 20),
+                        ),
+                        items: _markets
+                            .map((m) =>
+                                DropdownMenuItem(value: m, child: Text(m)))
+                            .toList(),
                         onChanged: _isSubmitting
                             ? null
                             : (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    _selectedUnit = val;
-                                  });
-                                }
+                                setState(() => _selectedMarket = val);
+                                _fetchMarketRate();
                               },
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Expected Selling Price
-                TextFormField(
-                  controller: _expectedPriceController,
-                  enabled: !_isSubmitting,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Farmer Expected Price (₹ / Quintal)',
-                    prefixIcon: Icon(Icons.currency_rupee),
-                    hintText: 'e.g. 2200',
-                  ),
-                  validator: (val) {
-                    if (val != null && val.isNotEmpty) {
-                      final d = double.tryParse(val.trim());
-                      if (d == null || d < 0) {
-                        return 'Price cannot be negative';
-                      }
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Harvest Date Picker Field
-                InkWell(
-                  onTap: _isSubmitting ? null : _selectHarvestDate,
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Expected / Harvest Date *',
-                      prefixIcon: Icon(Icons.calendar_today_outlined),
-                    ),
-                    child: Text(
-                      _selectedHarvestDate != null
-                          ? _selectedHarvestDate!.toIso8601String().split('T')[0]
-                          : 'Select Harvest Date',
-                      style: TextStyle(
-                        color: _selectedHarvestDate != null ? AppColors.textPrimary : AppColors.textMuted,
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _descriptionController,
+                        enabled: !_isSubmitting,
+                        maxLength: 500,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Additional Notes (Optional)',
+                          alignLabelWithHint: true,
+                          hintText:
+                              'Quality specifics, packaging, moisture level...',
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
 
-                // Location Dropdowns (State, District, Market)
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedState,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'State *',
-                    prefixIcon: Icon(Icons.map_outlined),
-                  ),
-                  items: _states.map((s) {
-                    return DropdownMenuItem<String>(value: s, child: Text(s));
-                  }).toList(),
-                  onChanged: _isSubmitting ? null : (val) => _onStateChanged(val),
-                  validator: (val) {
-                    if (val == null || val.isEmpty) {
-                      return 'State is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedDistrict,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'District *',
-                    prefixIcon: Icon(Icons.location_city_outlined),
-                  ),
-                  items: _districts.map((d) {
-                    return DropdownMenuItem<String>(value: d, child: Text(d));
-                  }).toList(),
-                  onChanged: _isSubmitting ? null : (val) => _onDistrictChanged(val),
-                  validator: (val) {
-                    if (val == null || val.isEmpty) {
-                      return 'District is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedMarket,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Market / Mandi',
-                    prefixIcon: Icon(Icons.storefront_outlined),
-                  ),
-                  items: _markets.map((m) {
-                    return DropdownMenuItem<String>(value: m, child: Text(m));
-                  }).toList(),
-                  onChanged: _isSubmitting
-                      ? null
-                      : (val) {
-                          setState(() {
-                            _selectedMarket = val;
-                          });
-                          _fetchMarketRate();
-                        },
-                ),
-                const SizedBox(height: 16),
-
-                // Description
-                TextFormField(
-                  controller: _descriptionController,
-                  enabled: !_isSubmitting,
-                  maxLength: 500,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (Optional)',
-                    alignLabelWithHint: true,
-                    hintText: 'Additional details (quality notes, packaging, etc.)',
-                  ),
-                ),
                 const SizedBox(height: 24),
 
                 // Submit Button
                 ElevatedButton(
                   onPressed: _isSubmitting ? null : _handleSubmit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
                   ),
                   child: _isSubmitting
                       ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5),
                         )
                       : Text(
-                          _isEditMode ? 'Save Changes' : 'Add Crop',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          _isEditMode ? 'Save Changes' : 'List Crop Produce',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                 ),
+                const SizedBox(height: 24),
               ],
             ),
           ),

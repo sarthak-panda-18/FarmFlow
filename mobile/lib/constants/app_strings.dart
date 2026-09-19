@@ -1,10 +1,12 @@
 class AppStrings {
   static const String appTitle = 'Farm-to-Market';
-  static const String appTagline = 'Intelligent Decision & Buyer Recommendation Platform';
+  static const String appTagline =
+      'Intelligent Decision & Buyer Recommendation Platform';
 
   // Auth Strings
   static const String loginTitle = 'Welcome Back';
-  static const String loginSubtitle = 'Sign in to access your decision platform';
+  static const String loginSubtitle =
+      'Sign in to access your decision platform';
   static const String registerTitle = 'Create Account';
   static const String registerSubtitle = 'Join as a Farmer or Buyer';
   static const String emailLabel = 'Email Address';
@@ -29,5 +31,6 @@ class AppStrings {
 
   // Feature Placeholders
   static const String phase1Notice = 'Phase 1 Project Foundation Active';
-  static const String featureComingSoon = 'Feature will be available in the upcoming phase.';
+  static const String featureComingSoon =
+      'Feature will be available in the upcoming phase.';
 }

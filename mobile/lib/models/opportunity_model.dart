@@ -88,8 +88,10 @@ class OpportunityModel {
     this.updatedAt,
   });
 
-  String get normalizedStatus => status.toUpperCase() == 'INTERESTED' ? 'PENDING' : status.toUpperCase();
-  bool get isPending => status.toUpperCase() == 'PENDING' || status.toUpperCase() == 'INTERESTED';
+  String get normalizedStatus =>
+      status.toUpperCase() == 'INTERESTED' ? 'PENDING' : status.toUpperCase();
+  bool get isPending =>
+      status.toUpperCase() == 'PENDING' || status.toUpperCase() == 'INTERESTED';
   bool get isAccepted => status.toUpperCase() == 'ACCEPTED';
   bool get isCompleted => status.toUpperCase() == 'COMPLETED';
   bool get isRejected => status.toUpperCase() == 'REJECTED';
@@ -97,13 +99,18 @@ class OpportunityModel {
 
   factory OpportunityModel.fromJson(Map<String, dynamic> json) {
     final buyer = json['buyer'] is Map<String, dynamic> ? json['buyer'] : {};
-    final buyerStats = buyer['ratingStats'] is Map<String, dynamic> ? buyer['ratingStats'] : {};
+    final buyerStats = buyer['ratingStats'] is Map<String, dynamic>
+        ? buyer['ratingStats']
+        : {};
 
     final farmer = json['farmer'] is Map<String, dynamic> ? json['farmer'] : {};
-    final farmerStats = farmer['ratingStats'] is Map<String, dynamic> ? farmer['ratingStats'] : {};
+    final farmerStats = farmer['ratingStats'] is Map<String, dynamic>
+        ? farmer['ratingStats']
+        : {};
 
     final crop = json['crop'] is Map<String, dynamic> ? json['crop'] : {};
-    final requirement = json['requirement'] is Map<String, dynamic> ? json['requirement'] : {};
+    final requirement =
+        json['requirement'] is Map<String, dynamic> ? json['requirement'] : {};
 
     return OpportunityModel(
       id: json['id'] ?? json['_id'] ?? '',
@@ -117,8 +124,8 @@ class OpportunityModel {
       buyerRating: (buyerStats['rating'] as num?)?.toDouble(),
       buyerRatingCount: buyerStats['ratingCount'] ?? 0,
       isBuyerNew: buyerStats['isNew'] ?? true,
-      buyerRatingLabel: buyerStats['displayRating'] ?? (buyerStats['isNew'] == true ? 'New Buyer' : 'Verified'),
-
+      buyerRatingLabel: buyerStats['displayRating'] ??
+          (buyerStats['isNew'] == true ? 'New Buyer' : 'Verified'),
       farmerId: farmer['id'] ?? json['farmerId'] ?? '',
       farmerName: farmer['name'] ?? 'Farmer',
       farmerPhone: farmer['phone'] ?? '',
@@ -126,31 +133,41 @@ class OpportunityModel {
       farmerRating: (farmerStats['rating'] as num?)?.toDouble(),
       farmerRatingCount: farmerStats['ratingCount'] ?? 0,
       isFarmerNew: farmerStats['isNew'] ?? true,
-      farmerRatingLabel: farmerStats['displayRating'] ?? (farmerStats['isNew'] == true ? 'New Farmer' : 'Verified'),
-
+      farmerRatingLabel: farmerStats['displayRating'] ??
+          (farmerStats['isNew'] == true ? 'New Farmer' : 'Verified'),
       cropId: crop['id'] ?? json['cropId'],
-      commodity: json['commodity'] ?? crop['commodity'] ?? requirement['commodity'] ?? 'Crop',
-      cropName: crop['cropName'] ?? json['cropName'] ?? json['commodity'] ?? 'Crop',
+      commodity: json['commodity'] ??
+          crop['commodity'] ??
+          requirement['commodity'] ??
+          'Crop',
+      cropName:
+          crop['cropName'] ?? json['cropName'] ?? json['commodity'] ?? 'Crop',
       variety: crop['variety'] ?? '',
-      quantity: (json['quantity'] as num?)?.toDouble() ?? (crop['quantity'] as num?)?.toDouble() ?? 0.0,
+      quantity: (json['quantity'] as num?)?.toDouble() ??
+          (crop['quantity'] as num?)?.toDouble() ??
+          0.0,
       quantityUnit: json['quantityUnit'] ?? crop['quantityUnit'] ?? 'quintal',
       offeredPrice: (json['offeredPrice'] as num?)?.toDouble() ?? 0.0,
-      expectedPrice: (crop['expectedPrice'] as num?)?.toDouble() ?? (json['expectedPrice'] as num?)?.toDouble() ?? 0.0,
+      expectedPrice: (crop['expectedPrice'] as num?)?.toDouble() ??
+          (json['expectedPrice'] as num?)?.toDouble() ??
+          0.0,
       harvestDate: crop['harvestDate'] ?? json['harvestDate'],
       requiredByDate: requirement['requiredByDate'] ?? json['requiredByDate'],
       requirementId: requirement['id'] ?? json['requirementId'],
-
-      marketReferencePrice: (json['marketReferencePrice'] as num?)?.toDouble() ?? 0.0,
+      marketReferencePrice:
+          (json['marketReferencePrice'] as num?)?.toDouble() ?? 0.0,
       marketSource: json['marketSource'] ?? 'AGMARKNET Reference',
       distanceKm: (json['distanceKm'] as num?)?.toDouble(),
       googleMapsUrl: json['googleMapsUrl'],
-
       initiatedBy: json['initiatedBy'] ?? 'BUYER',
       status: json['status'] ?? 'PENDING',
       notes: json['notes'] ?? '',
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) ?? DateTime.now() : DateTime.now(),
-      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt']) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'])
+          : null,
     );
   }
 }
-

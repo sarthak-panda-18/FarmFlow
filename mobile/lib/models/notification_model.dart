@@ -59,8 +59,9 @@ class NotificationModel {
       status: isReadBool ? 'READ' : 'UNREAD',
       isRead: isReadBool,
       recipientRole: json['recipientRole'],
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
     );
   }
 }
-

@@ -78,8 +78,8 @@ const calculateOpportunityNetValue = async (op, farmerCoords, crop) => {
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(buyerLocation)}`;
 
   return {
-    opportunityId: op._id.toString(),
-    buyerId: buyer._id ? buyer._id.toString() : op.buyerId.toString(),
+    opportunityId: op._id ? op._id.toString() : '',
+    buyerId: buyer._id ? buyer._id.toString() : (op.buyerId ? op.buyerId.toString() : ''),
     buyerName,
     businessName: buyer.businessName || '',
     phone: op.status === 'ACCEPTED' || op.status === 'COMPLETED' ? buyer.phone || '' : '',

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../models/opportunity_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/location_service.dart';
 
 class OpportunityDetailScreen extends StatefulWidget {
   final String opportunityId;
@@ -14,7 +14,8 @@ class OpportunityDetailScreen extends StatefulWidget {
   const OpportunityDetailScreen({super.key, required this.opportunityId});
 
   @override
-  State<OpportunityDetailScreen> createState() => _OpportunityDetailScreenState();
+  State<OpportunityDetailScreen> createState() =>
+      _OpportunityDetailScreenState();
 }
 
 class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
@@ -47,7 +48,8 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
         });
       } else {
         setState(() {
-          _errorMessage = res.data?['message'] ?? 'Unable to load opportunity details.';
+          _errorMessage =
+              res.data?['message'] ?? 'Unable to load opportunity details.';
           _isLoading = false;
         });
       }
@@ -67,22 +69,36 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
       final res = await _apiService.acceptOpportunity(widget.opportunityId);
       if (!mounted) return;
       if (res.data != null && res.data['success'] == true) {
+        final dynamic dealIdRaw = res.data['data']?['dealId'] ??
+            res.data['dealId'] ??
+            res.data['data']?['deal']?['_id'] ??
+            res.data['data']?['deal']?['id'];
+        final String? createdDealId = dealIdRaw?.toString();
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Opportunity accepted successfully! Both parties are now connected.'),
+            content: Text(
+                'Opportunity accepted successfully! Both parties are now connected.'),
             backgroundColor: AppColors.success,
           ),
         );
-        _fetchDetail();
+        await _fetchDetail();
+        if (mounted && createdDealId != null && createdDealId.isNotEmpty) {
+          context.push(AppConstants.routeDealDetail, extra: createdDealId);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(res.data?['message'] ?? 'Action failed'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(res.data?['message'] ?? 'Action failed'),
+              backgroundColor: AppColors.error),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -95,11 +111,16 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Decline Opportunity?'),
-        content: const Text('Are you sure you want to decline this interest? This cannot be undone.'),
+        content: const Text(
+            'Are you sure you want to decline this interest? This cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Decline'),
           ),
@@ -122,7 +143,9 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -135,11 +158,16 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancel Your Expressed Interest?'),
-        content: const Text('Are you sure you want to withdraw this offer/interest?'),
+        content: const Text(
+            'Are you sure you want to withdraw this offer/interest?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No, Keep It')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('No, Keep It')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warning,
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Yes, Cancel'),
           ),
@@ -162,7 +190,9 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -178,7 +208,8 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
       if (res.data != null && res.data['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Transaction completed! You can now leave a rating and feedback.'),
+            content: Text(
+                'Transaction completed! You can now leave a rating and feedback.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -187,7 +218,9 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -195,15 +228,17 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
     }
   }
 
-  void _openGoogleMaps(String? url) async {
-    if (url != null && url.isNotEmpty) {
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        return;
-      }
-    }
-    if (mounted) {
+  void _openGoogleMaps(String? url,
+      {double? lat, double? lng, String? address, String? label}) async {
+    final success = await LocationService.launchGoogleMaps(
+      latitude: lat,
+      longitude: lng,
+      address: address,
+      mapsUrl: url,
+      label: label,
+    );
+
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to launch Google Maps location.')),
       );
@@ -281,9 +316,13 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
             children: [
               const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
-              Text(_errorMessage ?? 'Opportunity not found', textAlign: TextAlign.center),
+              Text(_errorMessage ?? 'Opportunity not found',
+                  textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              ElevatedButton.icon(onPressed: _fetchDetail, icon: const Icon(Icons.refresh), label: const Text('Retry')),
+              ElevatedButton.icon(
+                  onPressed: _fetchDetail,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry')),
             ],
           ),
         ),
@@ -295,7 +334,10 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
     final currentUserId = auth.userId;
 
     // Check initiator vs receiver
-    final isInitiatedByMe = (isFarmer && op.initiatedBy == 'FARMER') || (!isFarmer && op.initiatedBy == 'BUYER') || (currentUserId == (op.initiatedBy == 'FARMER' ? op.farmerId : op.buyerId));
+    final isInitiatedByMe = (isFarmer && op.initiatedBy == 'FARMER') ||
+        (!isFarmer && op.initiatedBy == 'BUYER') ||
+        (currentUserId ==
+            (op.initiatedBy == 'FARMER' ? op.farmerId : op.buyerId));
     final isReceiver = !isInitiatedByMe;
 
     final isPending = op.isPending;
@@ -306,7 +348,8 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
 
     final otherPartyName = isFarmer ? op.buyerName : op.farmerName;
     final otherPartyRole = isFarmer ? 'Buyer' : 'Farmer';
-    final otherPartyRatingLabel = isFarmer ? op.buyerRatingLabel : op.farmerRatingLabel;
+    final otherPartyRatingLabel =
+        isFarmer ? op.buyerRatingLabel : op.farmerRatingLabel;
     final otherPartyPhone = isFarmer ? op.buyerPhone : op.farmerPhone;
     final otherPartyLocation = isFarmer ? op.buyerLocation : op.farmerLocation;
 
@@ -318,7 +361,8 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
           // 1. Header Status Card
           Card(
             elevation: AppConstants.cardElevation,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
             child: Padding(
               padding: const EdgeInsets.all(AppConstants.paddingMedium),
               child: Column(
@@ -333,7 +377,10 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                           children: [
                             Text(
                               op.commodity,
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.textPrimary,
                                   ),
@@ -346,14 +393,19 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: isInitiatedByMe ? AppColors.textSecondary : (isFarmer ? AppColors.primary : AppColors.secondary),
+                                color: isInitiatedByMe
+                                    ? AppColors.textSecondary
+                                    : (isFarmer
+                                        ? AppColors.primary
+                                        : AppColors.secondary),
                               ),
                             ),
                           ],
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: _getStatusBgColor(op.status),
                           borderRadius: BorderRadius.circular(12),
@@ -376,23 +428,34 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Quantity', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          const Text('Quantity',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary)),
                           Text(
                             '${op.quantity.toStringAsFixed(0)} ${op.quantityUnit}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary),
                           ),
                         ],
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Text('Agreed / Offered Price', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          const Text('Agreed / Offered Price',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary)),
                           Text(
                             '₹${op.offeredPrice.toStringAsFixed(0)} / Quintal',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: isFarmer ? AppColors.primary : AppColors.secondary,
+                              color: isFarmer
+                                  ? AppColors.primary
+                                  : AppColors.secondary,
                             ),
                           ),
                         ],
@@ -409,16 +472,20 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
           // 2. 3-Column Price Comparison Matrix (Farmer vs. Market Ref vs. Buyer)
           Card(
             elevation: AppConstants.cardElevation,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
             child: Padding(
               padding: const EdgeInsets.all(AppConstants.paddingMedium),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Price Comparison Matrix', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  const Text('Price Comparison Matrix',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
@@ -429,12 +496,16 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                       children: [
                         _PriceCol(
                           label: 'Farmer Expected',
-                          price: op.expectedPrice > 0 ? '₹${op.expectedPrice.toStringAsFixed(0)}' : 'Market',
+                          price: op.expectedPrice > 0
+                              ? '₹${op.expectedPrice.toStringAsFixed(0)}'
+                              : 'Market',
                           color: AppColors.primary,
                         ),
                         _PriceCol(
                           label: 'Market Ref (AGMARKNET)',
-                          price: op.marketReferencePrice > 0 ? '₹${op.marketReferencePrice.toStringAsFixed(0)}' : 'Available',
+                          price: op.marketReferencePrice > 0
+                              ? '₹${op.marketReferencePrice.toStringAsFixed(0)}'
+                              : 'Available',
                           color: AppColors.textSecondary,
                         ),
                         _PriceCol(
@@ -456,14 +527,22 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.star, color: Color(0xFF16A34A), size: 18),
+                          const Icon(Icons.star,
+                              color: Color(0xFF16A34A), size: 18),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Net Value Recommendation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF166534))),
-                                Text('Compare with other interested buyers', style: TextStyle(fontSize: 11, color: Color(0xFF166534))),
+                                Text('Net Value Recommendation',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: Color(0xFF166534))),
+                                Text('Compare with other interested buyers',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF166534))),
                               ],
                             ),
                           ),
@@ -474,7 +553,10 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                                 extra: op.cropId,
                               );
                             },
-                            child: const Text('Compare', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF166534))),
+                            child: const Text('Compare',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF166534))),
                           ),
                         ],
                       ),
@@ -490,21 +572,28 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
           // 3. Counterparty Details Card
           Card(
             elevation: AppConstants.cardElevation,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
             child: Padding(
               padding: const EdgeInsets.all(AppConstants.paddingMedium),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('$otherPartyRole Details', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text('$otherPartyRole Details',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14)),
                   const Divider(height: 16),
                   Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: (isFarmer ? AppColors.secondary : AppColors.primary).withValues(alpha: 0.1),
+                        backgroundColor:
+                            (isFarmer ? AppColors.secondary : AppColors.primary)
+                                .withValues(alpha: 0.1),
                         child: Icon(
                           isFarmer ? Icons.storefront : Icons.agriculture,
-                          color: isFarmer ? AppColors.secondary : AppColors.primary,
+                          color: isFarmer
+                              ? AppColors.secondary
+                              : AppColors.primary,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -512,26 +601,37 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(otherPartyName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                            Text(otherPartyName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 15)),
                             if (isFarmer && op.buyerBusinessName.isNotEmpty)
-                              Text(op.buyerBusinessName, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                              Text(op.buyerBusinessName,
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12)),
                             if (otherPartyLocation.isNotEmpty)
-                              Text(otherPartyLocation, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                              Text(otherPartyLocation,
+                                  style: const TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 11)),
                           ],
                         ),
                       ),
                       Chip(
-                        avatar: const Icon(Icons.star, size: 14, color: Color(0xFFD97706)),
+                        avatar: const Icon(Icons.star,
+                            size: 14, color: Color(0xFFD97706)),
                         label: Text(
                           otherPartyRatingLabel,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                         backgroundColor: const Color(0xFFFEF3C7),
                         visualDensity: VisualDensity.compact,
                       ),
                     ],
                   ),
-                  if ((isAccepted || isCompleted) && otherPartyPhone.isNotEmpty) ...[
+                  if ((isAccepted || isCompleted) &&
+                      otherPartyPhone.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -542,11 +642,15 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.phone, size: 18, color: AppColors.success),
+                          const Icon(Icons.phone,
+                              size: 18, color: AppColors.success),
                           const SizedBox(width: 8),
                           Text(
                             'Contact Phone: $otherPartyPhone',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF166534)),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Color(0xFF166534)),
                           ),
                         ],
                       ),
@@ -562,7 +666,8 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
           // 4. Location & Google Maps Card
           Card(
             elevation: AppConstants.cardElevation,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
             child: Padding(
               padding: const EdgeInsets.all(AppConstants.paddingMedium),
               child: Column(
@@ -571,21 +676,28 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Location & Distance', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      const Text('Location & Distance',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
                       if (op.distanceKm != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: const Color(0xFFE0F2FE),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.near_me, size: 12, color: Color(0xFF0284C7)),
+                              const Icon(Icons.near_me,
+                                  size: 12, color: Color(0xFF0284C7)),
                               const SizedBox(width: 4),
                               Text(
                                 '${op.distanceKm!.toStringAsFixed(1)} km away',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0369A1)),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0369A1)),
                               ),
                             ],
                           ),
@@ -594,12 +706,18 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   if (otherPartyLocation.isNotEmpty)
-                    Text(otherPartyLocation, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    Text(otherPartyLocation,
+                        style: const TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary)),
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => _openGoogleMaps(op.googleMapsUrl),
+                      onPressed: () => _openGoogleMaps(
+                        op.googleMapsUrl,
+                        address: otherPartyLocation,
+                        label: otherPartyName,
+                      ),
                       icon: const Icon(Icons.map_outlined, size: 16),
                       label: const Text('Open in Google Maps'),
                     ),
@@ -613,15 +731,21 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
             const SizedBox(height: 12),
             Card(
               elevation: AppConstants.cardElevation,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius)),
               child: Padding(
                 padding: const EdgeInsets.all(AppConstants.paddingMedium),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Notes / Terms', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const Text('Notes / Terms',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13)),
                     const SizedBox(height: 4),
-                    Text(op.notes, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    Text(op.notes,
+                        style: const TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary)),
                   ],
                 ),
               ),
@@ -652,7 +776,8 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isFarmer ? AppColors.primary : AppColors.secondary,
+                        backgroundColor:
+                            isFarmer ? AppColors.primary : AppColors.secondary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
@@ -686,9 +811,10 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  onPressed: () => context.push(AppConstants.routeDealDetail, extra: op.dealId!),
+                  onPressed: () => context.push(AppConstants.routeDealDetail,
+                      extra: op.dealId!),
                   icon: const Icon(Icons.handshake),
-                  label: const Text('View Deal (Logistics & Payment)'),
+                  label: const Text('View Deal Details & Agreement'),
                 ),
               ),
               const SizedBox(height: 10),
@@ -701,7 +827,9 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  onPressed: () => context.push(isFarmer ? AppConstants.routeFarmerDeals : AppConstants.routeBuyerDeals),
+                  onPressed: () => context.push(isFarmer
+                      ? AppConstants.routeFarmerDeals
+                      : AppConstants.routeBuyerDeals),
                   icon: const Icon(Icons.handshake),
                   label: const Text('Go to My Deals'),
                 ),
@@ -725,7 +853,8 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isFarmer ? AppColors.secondary : const Color(0xFFD97706),
+                  backgroundColor:
+                      isFarmer ? AppColors.secondary : const Color(0xFFD97706),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
@@ -751,12 +880,17 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: AppColors.error, size: 20),
+                  const Icon(Icons.info_outline,
+                      color: AppColors.error, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      isRejected ? 'This opportunity was declined.' : 'This opportunity was cancelled.',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                      isRejected
+                          ? 'This opportunity was declined.'
+                          : 'This opportunity was cancelled.',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF991B1B)),
                     ),
                   ),
                 ],
@@ -774,17 +908,22 @@ class _PriceCol extends StatelessWidget {
   final String price;
   final Color color;
 
-  const _PriceCol({required this.label, required this.price, required this.color});
+  const _PriceCol(
+      {required this.label, required this.price, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary), textAlign: TextAlign.center),
+        Text(label,
+            style:
+                const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+            textAlign: TextAlign.center),
         const SizedBox(height: 2),
-        Text(price, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color)),
+        Text(price,
+            style: TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 14, color: color)),
       ],
     );
   }
 }
-

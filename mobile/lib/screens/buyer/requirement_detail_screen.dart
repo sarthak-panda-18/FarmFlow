@@ -12,7 +12,8 @@ class RequirementDetailScreen extends StatefulWidget {
   const RequirementDetailScreen({super.key, required this.requirement});
 
   @override
-  State<RequirementDetailScreen> createState() => _RequirementDetailScreenState();
+  State<RequirementDetailScreen> createState() =>
+      _RequirementDetailScreenState();
 }
 
 class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
@@ -47,8 +48,18 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
 
   String _monthName(int month) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return months[(month - 1) % 12];
   }
@@ -87,7 +98,8 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Requirement cancelled successfully.')),
+            const SnackBar(
+                content: Text('Requirement cancelled successfully.')),
           );
           final updated = provider.requirements.firstWhere(
             (r) => r.id == _currentReq.id,
@@ -98,7 +110,9 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
           });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(provider.errorMessage ?? 'Failed to cancel requirement')),
+            SnackBar(
+                content: Text(
+                    provider.errorMessage ?? 'Failed to cancel requirement')),
           );
         }
       }
@@ -109,14 +123,14 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Requirement'),
+        title: const Text('Delete Crop Requirement?'),
         content: const Text(
-          'Are you sure you want to permanently delete this requirement? This action cannot be undone.',
+          'Are you sure you want to delete this crop requirement? This action cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -144,7 +158,9 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
           Navigator.pop(context, true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(provider.errorMessage ?? 'Failed to delete requirement')),
+            SnackBar(
+                content: Text(
+                    provider.errorMessage ?? 'Failed to delete requirement')),
           );
         }
       }
@@ -210,7 +226,10 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                         Expanded(
                           child: Text(
                             _currentReq.commodity,
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.textPrimary,
                                 ),
@@ -232,7 +251,9 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _currentReq.variety != null && _currentReq.variety!.isNotEmpty && _currentReq.variety != 'Not specified'
+                      _currentReq.variety != null &&
+                              _currentReq.variety!.isNotEmpty &&
+                              _currentReq.variety != 'Not specified'
                           ? 'Variety: ${_currentReq.variety}'
                           : 'Standard Quality',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -245,12 +266,14 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                       children: [
                         _DetailStatItem(
                           label: 'Required Quantity',
-                          value: '${_currentReq.quantity} ${_currentReq.quantityUnit}',
+                          value:
+                              '${_currentReq.quantity} ${_currentReq.quantityUnit}',
                           icon: Icons.inventory_2_outlined,
                         ),
                         _DetailStatItem(
                           label: 'Offered Price',
-                          value: '₹${_currentReq.offeredPrice.toStringAsFixed(0)}',
+                          value:
+                              '₹${_currentReq.offeredPrice.toStringAsFixed(0)}',
                           icon: Icons.payments_outlined,
                           valueColor: AppColors.secondary,
                         ),
@@ -295,7 +318,8 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                         _currentReq.state
                       ].where((s) => s != null && s.isNotEmpty).join(', '),
                     ),
-                    if (_currentReq.notes != null && _currentReq.notes!.isNotEmpty) ...[
+                    if (_currentReq.notes != null &&
+                        _currentReq.notes!.isNotEmpty) ...[
                       const SizedBox(height: 10),
                       _InfoRow(
                         icon: Icons.notes,
@@ -325,14 +349,17 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         side: const BorderSide(color: AppColors.secondary),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                          borderRadius:
+                              BorderRadius.circular(AppConstants.borderRadius),
                         ),
                       ),
                       onPressed: _isProcessing ? null : _navigateToEdit,
                       icon: const Icon(Icons.edit, color: AppColors.secondary),
                       label: const Text(
                         'Edit',
-                        style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: AppColors.secondary,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -343,14 +370,18 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         side: const BorderSide(color: AppColors.error),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                          borderRadius:
+                              BorderRadius.circular(AppConstants.borderRadius),
                         ),
                       ),
                       onPressed: _isProcessing ? null : _confirmAndCancel,
-                      icon: const Icon(Icons.cancel_outlined, color: AppColors.error),
+                      icon: const Icon(Icons.cancel_outlined,
+                          color: AppColors.error),
                       label: const Text(
                         'Cancel',
-                        style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -362,7 +393,8 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                          borderRadius:
+                              BorderRadius.circular(AppConstants.borderRadius),
                         ),
                       ),
                       onPressed: _isProcessing ? null : _confirmAndDelete,
@@ -370,7 +402,8 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2),
                             )
                           : const Icon(Icons.delete_outline),
                       label: const Text(
@@ -387,7 +420,8 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius),
                   border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
@@ -397,7 +431,10 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                     Expanded(
                       child: Text(
                         'This requirement is ${_currentReq.status.toLowerCase()} and can no longer be edited or cancelled.',
-                        style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 13),
+                        style: TextStyle(
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13),
                       ),
                     ),
                   ],
@@ -435,7 +472,8 @@ class _DetailStatItem extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style:
+                  const TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
             Text(
               value,
@@ -476,12 +514,16 @@ class _InfoRow extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w500),
               ),
             ],
           ),

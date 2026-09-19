@@ -62,7 +62,9 @@ class BuyerRequirementModel {
       id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
       buyerId: json['buyerId']?.toString(),
       commodity: json['commodity']?.toString() ?? 'N/A',
-      cropName: json['cropName']?.toString() ?? json['commodity']?.toString() ?? 'N/A',
+      cropName: json['cropName']?.toString() ??
+          json['commodity']?.toString() ??
+          'N/A',
       variety: json['variety']?.toString() ?? 'Not specified',
       grade: json['grade']?.toString() ?? 'Not specified',
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,

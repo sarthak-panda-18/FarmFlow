@@ -112,7 +112,8 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('📍 GPS updated: ${_myLat!.toStringAsFixed(4)}, ${_myLng!.toStringAsFixed(4)}'),
+              content: Text(
+                  '📍 GPS updated: ${_myLat!.toStringAsFixed(4)}, ${_myLng!.toStringAsFixed(4)}'),
               backgroundColor: AppColors.success,
             ),
           );
@@ -122,7 +123,8 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(gpsResult.errorMessage ?? 'Unable to acquire GPS location'),
+              content: Text(
+                  gpsResult.errorMessage ?? 'Unable to acquire GPS location'),
               backgroundColor: AppColors.error,
               action: SnackBarAction(
                 label: 'Settings',
@@ -136,7 +138,9 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating location: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Error updating location: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -222,7 +226,8 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
           unselectedLabelColor: Colors.white70,
           tabs: [
             Tab(icon: const Icon(Icons.people_outline), text: peerTabTitle),
-            const Tab(icon: Icon(Icons.storefront_outlined), text: 'APMC Markets'),
+            const Tab(
+                icon: Icon(Icons.storefront_outlined), text: 'APMC Markets'),
           ],
         ),
       ),
@@ -249,13 +254,17 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                     children: [
                       const Text(
                         'Your Current Location',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.bold),
                       ),
                       Text(
                         _myLat != null && _myLng != null
                             ? '${_myLat!.toStringAsFixed(4)}, ${_myLng!.toStringAsFixed(4)} ${_myAddress.isNotEmpty ? "• $_myAddress" : ""}'
                             : 'GPS Location Not Set',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.bold),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -265,9 +274,13 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                 TextButton.icon(
                   onPressed: _isUpdatingGps ? null : _refreshGpsLocation,
                   icon: _isUpdatingGps
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.refresh, size: 16),
-                  label: const Text('Update GPS', style: TextStyle(fontSize: 12)),
+                  label:
+                      const Text('Update GPS', style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),
@@ -279,7 +292,11 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
             color: Colors.grey[50],
             child: Row(
               children: [
-                const Text('Radius: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                const Text('Radius: ',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary)),
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -294,8 +311,12 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                             selectedColor: primaryColor.withValues(alpha: 0.2),
                             labelStyle: TextStyle(
                               fontSize: 11,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected ? primaryColor : AppColors.textSecondary,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? primaryColor
+                                  : AppColors.textSecondary,
                             ),
                             onSelected: (selected) {
                               if (selected) {
@@ -362,11 +383,15 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.location_off_outlined, size: 56, color: Colors.grey[400]),
+              Icon(Icons.location_off_outlined,
+                  size: 56, color: Colors.grey[400]),
               const SizedBox(height: 12),
               Text(
-                _isFarmer ? 'No nearby Buyers found within ${_selectedRadius.toInt()} km' : 'No nearby Farmers found within ${_selectedRadius.toInt()} km',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                _isFarmer
+                    ? 'No nearby Buyers found within ${_selectedRadius.toInt()} km'
+                    : 'No nearby Farmers found within ${_selectedRadius.toInt()} km',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -390,7 +415,8 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
         final dist = (item['distanceKm'] as num?)?.toDouble() ?? 0.0;
         final lat = (item['latitude'] as num?)?.toDouble();
         final lng = (item['longitude'] as num?)?.toDouble();
-        final address = item['address'] ?? '${item['district'] ?? ""}, ${item['state'] ?? ""}';
+        final address = item['address'] ??
+            '${item['district'] ?? ""}, ${item['state'] ?? ""}';
 
         final cropsOrReqs = _isFarmer
             ? (item['requirements'] as List? ?? [])
@@ -416,8 +442,12 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                         children: [
                           CircleAvatar(
                             radius: 18,
-                            backgroundColor: primaryColor.withValues(alpha: 0.15),
-                            child: Icon(_isFarmer ? Icons.store : Icons.agriculture, color: primaryColor, size: 20),
+                            backgroundColor:
+                                primaryColor.withValues(alpha: 0.15),
+                            child: Icon(
+                                _isFarmer ? Icons.store : Icons.agriculture,
+                                color: primaryColor,
+                                size: 20),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -426,12 +456,16 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                               children: [
                                 Text(
                                   name,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
                                   address,
-                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],
@@ -441,7 +475,8 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(12),
@@ -449,11 +484,15 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.near_me, size: 12, color: Color(0xFF2563EB)),
+                          const Icon(Icons.near_me,
+                              size: 12, color: Color(0xFF2563EB)),
                           const SizedBox(width: 4),
                           Text(
                             '${dist.toStringAsFixed(1)} km',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1D4ED8)),
                           ),
                         ],
                       ),
@@ -464,8 +503,13 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                 if (cropsOrReqs.isNotEmpty) ...[
                   const Divider(height: 16),
                   Text(
-                    _isFarmer ? 'Active Requirements (${cropsOrReqs.length}):' : 'Available Crops (${cropsOrReqs.length}):',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                    _isFarmer
+                        ? 'Active Requirements (${cropsOrReqs.length}):'
+                        : 'Available Crops (${cropsOrReqs.length}):',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 4),
                   Wrap(
@@ -476,7 +520,8 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                       final qty = c['quantity'] ?? '';
                       final unit = c['quantityUnit'] ?? '';
                       return Chip(
-                        label: Text('$comm ($qty $unit)', style: const TextStyle(fontSize: 11)),
+                        label: Text('$comm ($qty $unit)',
+                            style: const TextStyle(fontSize: 11)),
                         backgroundColor: const Color(0xFFF1F5F9),
                         visualDensity: VisualDensity.compact,
                       );
@@ -520,11 +565,13 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.storefront_outlined, size: 56, color: Colors.grey[400]),
+              Icon(Icons.storefront_outlined,
+                  size: 56, color: Colors.grey[400]),
               const SizedBox(height: 12),
               Text(
                 'No APMC markets within ${_selectedRadius.toInt()} km',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -574,7 +621,8 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                           const CircleAvatar(
                             radius: 18,
                             backgroundColor: Color(0xFFDCFCE7),
-                            child: Icon(Icons.storefront, color: AppColors.primary, size: 20),
+                            child: Icon(Icons.storefront,
+                                color: AppColors.primary, size: 20),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -583,12 +631,16 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                               children: [
                                 Text(
                                   '$marketName APMC Mandi',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
                                   '$district, $state',
-                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],
@@ -599,7 +651,8 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                     ),
                     if (dist != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(12),
@@ -607,11 +660,15 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.near_me, size: 12, color: Color(0xFF2563EB)),
+                            const Icon(Icons.near_me,
+                                size: 12, color: Color(0xFF2563EB)),
                             const SizedBox(width: 4),
                             Text(
                               '${dist.toStringAsFixed(1)} km',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1D4ED8)),
                             ),
                           ],
                         ),
@@ -623,19 +680,28 @@ class _MapDiscoveryScreenState extends State<MapDiscoveryScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Recent Rate: $sampleComm', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                      Text('₹${samplePrice.toStringAsFixed(0)} / Quintal', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      Text('Recent Rate: $sampleComm',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary)),
+                      Text('₹${samplePrice.toStringAsFixed(0)} / Quintal',
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary)),
                     ],
                   ),
                   if (date.isNotEmpty)
-                    Text('Date: $date', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                    Text('Date: $date',
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.textMuted)),
                 ],
                 const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      final queryLabel = '$marketName APMC Mandi, $district, $state';
+                      final queryLabel =
+                          '$marketName APMC Mandi, $district, $state';
                       if (lat != null && lng != null) {
                         _openGoogleMapsForCoordinate(lat, lng, queryLabel);
                       } else {

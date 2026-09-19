@@ -88,6 +88,16 @@ const buyerRequirementSchema = new mongoose.Schema(
       maxlength: [500, 'Notes cannot exceed 500 characters'],
       default: '',
     },
+    transportCost: {
+      type: Number,
+      default: null,
+      min: [0, 'Transportation cost cannot be negative'],
+    },
+    otherCosts: {
+      type: Number,
+      default: 0,
+      min: [0, 'Other costs cannot be negative'],
+    },
     status: {
       type: String,
       enum: {

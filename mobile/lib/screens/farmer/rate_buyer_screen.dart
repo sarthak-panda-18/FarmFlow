@@ -56,7 +56,8 @@ class _RateBuyerScreenState extends State<RateBuyerScreen> {
       if (res.data != null && res.data['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Thank you! Your feedback has been submitted successfully.'),
+            content: Text(
+                'Thank you! Your feedback has been submitted successfully.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -93,7 +94,8 @@ class _RateBuyerScreenState extends State<RateBuyerScreen> {
     );
   }
 
-  Widget _buildCategorySlider(String label, double value, ValueChanged<double> onChanged) {
+  Widget _buildCategorySlider(
+      String label, double value, ValueChanged<double> onChanged) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -130,12 +132,14 @@ class _RateBuyerScreenState extends State<RateBuyerScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: AppColors.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius),
                   border: Border.all(color: AppColors.error),
                 ),
                 child: Text(
                   _errorMessage!,
-                  style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: AppColors.error, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 16),
@@ -144,14 +148,17 @@ class _RateBuyerScreenState extends State<RateBuyerScreen> {
             // Overall Rating Card
             Card(
               elevation: AppConstants.cardElevation,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius)),
               child: Padding(
                 padding: const EdgeInsets.all(AppConstants.paddingMedium),
                 child: Column(
                   children: [
                     const Text(
                       'Overall Rating',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 8),
                     _buildStarSelector(_overallRating, (val) {
@@ -159,7 +166,9 @@ class _RateBuyerScreenState extends State<RateBuyerScreen> {
                     }),
                     Text(
                       '${_overallRating.toInt()} / 5 Stars',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary),
                     ),
                   ],
                 ),
@@ -170,7 +179,9 @@ class _RateBuyerScreenState extends State<RateBuyerScreen> {
             // Detailed Category Ratings Card
             Card(
               elevation: AppConstants.cardElevation,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius)),
               child: Padding(
                 padding: const EdgeInsets.all(AppConstants.paddingMedium),
                 child: Column(
@@ -178,19 +189,25 @@ class _RateBuyerScreenState extends State<RateBuyerScreen> {
                   children: [
                     const Text(
                       'Feedback Categories',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                     const Divider(height: 20),
-                    _buildCategorySlider('Customer Interaction', _customerInteraction, (val) {
+                    _buildCategorySlider(
+                        'Customer Interaction', _customerInteraction, (val) {
                       setState(() => _customerInteraction = val);
                     }),
-                    _buildCategorySlider('Payment Experience', _paymentExperience, (val) {
+                    _buildCategorySlider(
+                        'Payment Experience', _paymentExperience, (val) {
                       setState(() => _paymentExperience = val);
                     }),
-                    _buildCategorySlider('Communication', _communication, (val) {
+                    _buildCategorySlider('Communication', _communication,
+                        (val) {
                       setState(() => _communication = val);
                     }),
-                    _buildCategorySlider('Transaction Experience', _transactionExperience, (val) {
+                    _buildCategorySlider(
+                        'Transaction Experience', _transactionExperience,
+                        (val) {
                       setState(() => _transactionExperience = val);
                     }),
                   ],
@@ -219,18 +236,22 @@ class _RateBuyerScreenState extends State<RateBuyerScreen> {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+                shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.borderRadius)),
               ),
               onPressed: _isSubmitting ? null : _handleSubmit,
               child: _isSubmitting
                   ? const SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5),
                     )
                   : const Text(
                       'Submit Feedback',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
             ),
           ],

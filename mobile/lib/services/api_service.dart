@@ -12,8 +12,10 @@ class ApiService {
         Dio(
           BaseOptions(
             baseUrl: AppConfig.apiBaseUrl,
-            connectTimeout: const Duration(seconds: AppConfig.apiTimeoutSeconds),
-            receiveTimeout: const Duration(seconds: AppConfig.apiTimeoutSeconds),
+            connectTimeout:
+                const Duration(seconds: AppConfig.apiTimeoutSeconds),
+            receiveTimeout:
+                const Duration(seconds: AppConfig.apiTimeoutSeconds),
             sendTimeout: const Duration(seconds: AppConfig.apiTimeoutSeconds),
             headers: const {
               'Content-Type': 'application/json',
@@ -179,7 +181,8 @@ class ApiService {
   }
 
   // Verification APIs
-  Future<Response> submitFarmerVerification(String farmerId, {String? supportingDocument}) async {
+  Future<Response> submitFarmerVerification(String farmerId,
+      {String? supportingDocument}) async {
     return await post('/verification/farmer', data: {
       'farmerId': farmerId,
       'supportingDocument': supportingDocument ?? '',
@@ -209,7 +212,8 @@ class ApiService {
     return await post('/crops', data: cropData);
   }
 
-  Future<Response> getMyCrops({int page = 1, int limit = 20, String? status}) async {
+  Future<Response> getMyCrops(
+      {int page = 1, int limit = 20, String? status}) async {
     final params = <String, dynamic>{'page': page, 'limit': limit};
     if (status != null && status.isNotEmpty) params['status'] = status;
     return await get('/crops/my', queryParameters: params);
@@ -228,11 +232,13 @@ class ApiService {
   }
 
   // Buyer Requirement Management APIs
-  Future<Response> createRequirement(Map<String, dynamic> requirementData) async {
+  Future<Response> createRequirement(
+      Map<String, dynamic> requirementData) async {
     return await post('/requirements', data: requirementData);
   }
 
-  Future<Response> getMyRequirements({int page = 1, int limit = 20, String? status}) async {
+  Future<Response> getMyRequirements(
+      {int page = 1, int limit = 20, String? status}) async {
     final params = <String, dynamic>{'page': page, 'limit': limit};
     if (status != null && status.isNotEmpty) params['status'] = status;
     return await get('/requirements/my', queryParameters: params);
@@ -242,7 +248,8 @@ class ApiService {
     return await get('/requirements/$id');
   }
 
-  Future<Response> updateRequirement(String id, Map<String, dynamic> requirementData) async {
+  Future<Response> updateRequirement(
+      String id, Map<String, dynamic> requirementData) async {
     return await put('/requirements/$id', data: requirementData);
   }
 
@@ -282,13 +289,17 @@ class ApiService {
 
   Future<Response> getVarieties({String? commodity}) async {
     final params = <String, dynamic>{};
-    if (commodity != null && commodity.isNotEmpty) params['commodity'] = commodity;
+    if (commodity != null && commodity.isNotEmpty) {
+      params['commodity'] = commodity;
+    }
     return await get('/commodities/varieties', queryParameters: params);
   }
 
   Future<Response> getGrades({String? commodity}) async {
     final params = <String, dynamic>{};
-    if (commodity != null && commodity.isNotEmpty) params['commodity'] = commodity;
+    if (commodity != null && commodity.isNotEmpty) {
+      params['commodity'] = commodity;
+    }
     return await get('/commodities/grades', queryParameters: params);
   }
 
@@ -304,6 +315,28 @@ class ApiService {
     if (district != null && district.isNotEmpty) params['district'] = district;
     if (market != null && market.isNotEmpty) params['market'] = market;
     return await get('/markets/reference-price', queryParameters: params);
+  }
+
+  /// Get ML-driven price prediction for a commodity
+  Future<Response> getMarketPrediction({
+    required String commodity,
+    String? state,
+    String? district,
+    String? market,
+    String? variety,
+    String? grade,
+    String? targetDate,
+  }) async {
+    final params = <String, dynamic>{'commodity': commodity};
+    if (state != null && state.isNotEmpty) params['state'] = state;
+    if (district != null && district.isNotEmpty) params['district'] = district;
+    if (market != null && market.isNotEmpty) params['market'] = market;
+    if (variety != null && variety.isNotEmpty) params['variety'] = variety;
+    if (grade != null && grade.isNotEmpty) params['grade'] = grade;
+    if (targetDate != null && targetDate.isNotEmpty) {
+      params['targetDate'] = targetDate;
+    }
+    return await get('/markets/prediction', queryParameters: params);
   }
 
   Future<Response> getMarketPrices({
@@ -327,7 +360,9 @@ class ApiService {
       'sortBy': sortBy,
       'order': order,
     };
-    if (commodity != null && commodity.isNotEmpty) params['commodity'] = commodity;
+    if (commodity != null && commodity.isNotEmpty) {
+      params['commodity'] = commodity;
+    }
     if (category != null && category.isNotEmpty) params['category'] = category;
     if (state != null && state.isNotEmpty) params['state'] = state;
     if (district != null && district.isNotEmpty) params['district'] = district;
@@ -379,7 +414,9 @@ class ApiService {
   }) async {
     final params = <String, dynamic>{'page': page, 'limit': limit};
     if (q != null && q.isNotEmpty) params['q'] = q;
-    if (commodity != null && commodity.isNotEmpty) params['commodity'] = commodity;
+    if (commodity != null && commodity.isNotEmpty) {
+      params['commodity'] = commodity;
+    }
     if (state != null && state.isNotEmpty) params['state'] = state;
     return await get('/markets/search', queryParameters: params);
   }
@@ -424,7 +461,9 @@ class ApiService {
     if (latitude != null) params['latitude'] = latitude;
     if (longitude != null) params['longitude'] = longitude;
     if (maxDistanceKm != null) params['maxDistanceKm'] = maxDistanceKm;
-    if (commodity != null && commodity.isNotEmpty) params['commodity'] = commodity;
+    if (commodity != null && commodity.isNotEmpty) {
+      params['commodity'] = commodity;
+    }
 
     return await get('/location/nearby-farmers', queryParameters: params);
   }
@@ -440,7 +479,9 @@ class ApiService {
     if (latitude != null) params['latitude'] = latitude;
     if (longitude != null) params['longitude'] = longitude;
     if (maxDistanceKm != null) params['maxDistanceKm'] = maxDistanceKm;
-    if (commodity != null && commodity.isNotEmpty) params['commodity'] = commodity;
+    if (commodity != null && commodity.isNotEmpty) {
+      params['commodity'] = commodity;
+    }
 
     return await get('/location/nearby-buyers', queryParameters: params);
   }
@@ -473,7 +514,9 @@ class ApiService {
     final params = <String, dynamic>{'limit': limit};
     if (cropId != null && cropId.isNotEmpty) params['cropId'] = cropId;
     if (maxDistance != null) params['maxDistance'] = maxDistance;
-    if (commodity != null && commodity.isNotEmpty) params['commodity'] = commodity;
+    if (commodity != null && commodity.isNotEmpty) {
+      params['commodity'] = commodity;
+    }
 
     return await get('/matches/farmer', queryParameters: params);
   }
@@ -485,9 +528,13 @@ class ApiService {
     int limit = 50,
   }) async {
     final params = <String, dynamic>{'limit': limit};
-    if (requirementId != null && requirementId.isNotEmpty) params['requirementId'] = requirementId;
+    if (requirementId != null && requirementId.isNotEmpty) {
+      params['requirementId'] = requirementId;
+    }
     if (maxDistance != null) params['maxDistance'] = maxDistance;
-    if (commodity != null && commodity.isNotEmpty) params['commodity'] = commodity;
+    if (commodity != null && commodity.isNotEmpty) {
+      params['commodity'] = commodity;
+    }
 
     return await get('/matches/buyer', queryParameters: params);
   }
@@ -504,7 +551,9 @@ class ApiService {
     String? notes,
   }) async {
     final data = <String, dynamic>{'cropId': cropId};
-    if (requirementId != null && requirementId.isNotEmpty) data['requirementId'] = requirementId;
+    if (requirementId != null && requirementId.isNotEmpty) {
+      data['requirementId'] = requirementId;
+    }
     if (offeredPrice != null) data['offeredPrice'] = offeredPrice;
     if (notes != null) data['notes'] = notes;
     return await post('/opportunities/express-interest', data: data);
@@ -523,16 +572,20 @@ class ApiService {
     return await post('/opportunities/farmer-express-interest', data: data);
   }
 
-  Future<Response> getFarmerOpportunities({int page = 1, int limit = 20, String? status}) async {
+  Future<Response> getFarmerOpportunities(
+      {int page = 1, int limit = 20, String? status}) async {
     final params = <String, dynamic>{'page': page, 'limit': limit};
     if (status != null && status.isNotEmpty) params['status'] = status;
-    return await get('/opportunities/farmer-opportunities', queryParameters: params);
+    return await get('/opportunities/farmer-opportunities',
+        queryParameters: params);
   }
 
-  Future<Response> getBuyerOpportunities({int page = 1, int limit = 20, String? status}) async {
+  Future<Response> getBuyerOpportunities(
+      {int page = 1, int limit = 20, String? status}) async {
     final params = <String, dynamic>{'page': page, 'limit': limit};
     if (status != null && status.isNotEmpty) params['status'] = status;
-    return await get('/opportunities/buyer-opportunities', queryParameters: params);
+    return await get('/opportunities/buyer-opportunities',
+        queryParameters: params);
   }
 
   Future<Response> getDiscoverableFarmerCrops({
@@ -543,7 +596,9 @@ class ApiService {
     int limit = 20,
   }) async {
     final params = <String, dynamic>{'page': page, 'limit': limit};
-    if (commodity != null && commodity.isNotEmpty) params['commodity'] = commodity;
+    if (commodity != null && commodity.isNotEmpty) {
+      params['commodity'] = commodity;
+    }
     if (state != null && state.isNotEmpty) params['state'] = state;
     if (district != null && district.isNotEmpty) params['district'] = district;
     return await get('/opportunities/discover-crops', queryParameters: params);
@@ -583,7 +638,8 @@ class ApiService {
   }
 
   // Notifications APIs
-  Future<Response> getNotifications({int page = 1, int limit = 20, String? status}) async {
+  Future<Response> getNotifications(
+      {int page = 1, int limit = 20, String? status}) async {
     final params = <String, dynamic>{'page': page, 'limit': limit};
     if (status != null && status.isNotEmpty) params['status'] = status;
     return await get('/notifications', queryParameters: params);
@@ -626,18 +682,25 @@ class ApiService {
     return await get('/deals/$id/agreement');
   }
 
-  Future<Response> acceptDealAgreement(String id, {required bool agreeToTerms, int? agreementVersion}) async {
+  Future<Response> acceptDealAgreement(String id,
+      {required bool agreeToTerms, int? agreementVersion}) async {
     return await post('/deals/$id/agreement/accept', data: {
       'agreeToTerms': agreeToTerms,
       if (agreementVersion != null) 'agreementVersion': agreementVersion,
     });
   }
 
-  Future<Response> updateDealAgreement(String id, Map<String, dynamic> data) async {
+  Future<Response> updateDealAgreement(
+      String id, Map<String, dynamic> data) async {
     return await patch('/deals/$id/agreement', data: data);
   }
 
-  Future<Response> getMarketTrends({String? commodity, String? category, String? state, String? district, String? market}) async {
+  Future<Response> getMarketTrends(
+      {String? commodity,
+      String? category,
+      String? state,
+      String? district,
+      String? market}) async {
     final query = <String, dynamic>{};
     if (commodity != null) query['commodity'] = commodity;
     if (category != null) query['category'] = category;
@@ -653,7 +716,8 @@ class ApiService {
     return await post('/markets/trigger-alerts', data: data);
   }
 
-  Future<Response> updateDealStatus(String id, String status, {String? notes}) async {
+  Future<Response> updateDealStatus(String id, String status,
+      {String? notes}) async {
     return await patch('/deals/$id/status', data: {
       'status': status,
       if (notes != null) 'notes': notes,
@@ -672,7 +736,9 @@ class ApiService {
     final data = <String, dynamic>{};
     if (pickupLocation != null) data['pickupLocation'] = pickupLocation;
     if (deliveryLocation != null) data['deliveryLocation'] = deliveryLocation;
-    if (transportRequired != null) data['transportRequired'] = transportRequired;
+    if (transportRequired != null) {
+      data['transportRequired'] = transportRequired;
+    }
     if (transportType != null) data['transportType'] = transportType;
     if (transportCost != null) data['transportCost'] = transportCost;
     if (otherCosts != null) data['otherCosts'] = otherCosts;
@@ -692,7 +758,8 @@ class ApiService {
     });
   }
 
-  Future<Response> reportPaymentMade(String id, {String? notes, String? paymentMethod}) async {
+  Future<Response> reportPaymentMade(String id,
+      {String? notes, String? paymentMethod}) async {
     return await patch('/deals/$id/payment/report', data: {
       if (notes != null) 'notes': notes,
       if (paymentMethod != null) 'paymentMethod': paymentMethod,
@@ -734,14 +801,15 @@ class ApiService {
     return await post('/ratings/buyer-to-farmer', data: {
       'opportunityId': opportunityId,
       'rating': rating,
-      'categoryRatings': categoryRatings ?? {
-        'productQuality': 5,
-        'freshness': 5,
-        'spoilage': 5,
-        'quantityAccuracy': 5,
-        'farmerInteraction': 5,
-        'transactionExperience': 5,
-      },
+      'categoryRatings': categoryRatings ??
+          {
+            'productQuality': 5,
+            'freshness': 5,
+            'spoilage': 5,
+            'quantityAccuracy': 5,
+            'farmerInteraction': 5,
+            'transactionExperience': 5,
+          },
       'comment': comment ?? '',
     });
   }
@@ -755,12 +823,13 @@ class ApiService {
     return await post('/ratings/farmer-to-buyer', data: {
       'opportunityId': opportunityId,
       'rating': rating,
-      'categoryRatings': categoryRatings ?? {
-        'customerInteraction': 5,
-        'paymentExperience': 5,
-        'communication': 5,
-        'transactionExperience': 5,
-      },
+      'categoryRatings': categoryRatings ??
+          {
+            'customerInteraction': 5,
+            'paymentExperience': 5,
+            'communication': 5,
+            'transactionExperience': 5,
+          },
       'comment': comment ?? '',
     });
   }
@@ -770,41 +839,59 @@ class ApiService {
   }
 
   // Base HTTP Helpers
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters, Options? options}) async {
+  Future<Response> get(String path,
+      {Map<String, dynamic>? queryParameters, Options? options}) async {
     try {
-      return await _dio.get(path, queryParameters: queryParameters, options: options);
+      return await _dio.get(path,
+          queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  Future<Response> post(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) async {
+  Future<Response> post(String path,
+      {dynamic data,
+      Map<String, dynamic>? queryParameters,
+      Options? options}) async {
     try {
-      return await _dio.post(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.post(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  Future<Response> put(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) async {
+  Future<Response> put(String path,
+      {dynamic data,
+      Map<String, dynamic>? queryParameters,
+      Options? options}) async {
     try {
-      return await _dio.put(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.put(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  Future<Response> delete(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) async {
+  Future<Response> delete(String path,
+      {dynamic data,
+      Map<String, dynamic>? queryParameters,
+      Options? options}) async {
     try {
-      return await _dio.delete(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.delete(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  Future<Response> patch(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) async {
+  Future<Response> patch(String path,
+      {dynamic data,
+      Map<String, dynamic>? queryParameters,
+      Options? options}) async {
     try {
-      return await _dio.patch(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.patch(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -818,22 +905,30 @@ class ApiService {
         return Exception(data['message'].toString());
       }
       if (statusCode == 409) return Exception('Conflict error occurred.');
-      if (statusCode == 403) return Exception('You are not authorized to perform this action.');
-      if (statusCode == 401) return Exception('Invalid or expired authentication.');
+      if (statusCode == 403) {
+        return Exception('You are not authorized to perform this action.');
+      }
+      if (statusCode == 401) {
+        return Exception('Invalid or expired authentication.');
+      }
       if (statusCode == 404) return Exception('Requested resource not found.');
       if (statusCode == 400) return Exception('Invalid request parameters.');
-      if (statusCode == 500) return Exception('Server error. Please try again later.');
+      if (statusCode == 500) {
+        return Exception('Server error. Please try again later.');
+      }
     }
 
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
-        return Exception('Cannot connect to server (${_dio.options.baseUrl}). Connection timed out.');
+        return Exception(
+            'Cannot connect to server (${_dio.options.baseUrl}). Connection timed out.');
       case DioExceptionType.receiveTimeout:
         return Exception('Server response timed out. Please try again.');
       case DioExceptionType.sendTimeout:
         return Exception('Request sending timed out.');
       case DioExceptionType.connectionError:
-        return Exception('Server is unreachable at ${_dio.options.baseUrl}. Please check server settings.');
+        return Exception(
+            'Server is unreachable at ${_dio.options.baseUrl}. Please check server settings.');
       case DioExceptionType.cancel:
         return Exception('Request was cancelled.');
       default:

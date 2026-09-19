@@ -194,8 +194,8 @@ const runPhase6And7Tests = async () => {
         cropName: 'Fresh Green Bhindi',
         variety: 'Standard',
         grade: 'FAQ',
-        quantity: 500,
-        quantityUnit: 'kg',
+        quantity: 50,
+        quantityUnit: 'quintal',
         expectedPrice: 1800, // per quintal
         harvestDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
         state: 'Andhra Pradesh',
@@ -204,7 +204,7 @@ const runPhase6And7Tests = async () => {
     });
     const cropData = await cropRes.json();
     const testCropId = (cropData.data.crop?.id || cropData.data._id || cropData.data.id).toString();
-    console.log('  Created Test Farmer Crop: Bhindi 500 kg @ ₹1800/Q, ID:', testCropId);
+    console.log('  Created Test Farmer Crop: Bhindi 50 Q @ ₹1800/Q, ID:', testCropId);
 
     const reqRes = await fetch(`${baseUrl}/requirements`, {
       method: 'POST',
@@ -215,8 +215,8 @@ const runPhase6And7Tests = async () => {
       body: JSON.stringify({
         commodity: 'Bhindi(Ladies Finger)',
         cropName: 'Bhindi',
-        quantity: 300,
-        quantityUnit: 'kg',
+        quantity: 30,
+        quantityUnit: 'quintal',
         offeredPrice: 1900, // per quintal
         requiredByDate: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0],
         state: 'Andhra Pradesh',

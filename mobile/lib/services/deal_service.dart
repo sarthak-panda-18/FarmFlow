@@ -4,13 +4,14 @@ import 'api_service.dart';
 class DealService {
   final ApiService _apiService;
 
-  DealService({ApiService? apiService}) : _apiService = apiService ?? ApiService();
+  DealService({ApiService? apiService})
+      : _apiService = apiService ?? ApiService();
 
   Future<List<DealModel>> getFarmerDeals({String? status}) async {
     try {
       final res = await _apiService.getFarmerDeals(status: status);
       if (res.data != null && res.data['success'] == true) {
-        final List list = res.data['deals'] ?? [];
+        final List list = res.data['data'] ?? res.data['deals'] ?? [];
         return list.map((item) => DealModel.fromJson(item)).toList();
       }
       return [];
@@ -23,7 +24,7 @@ class DealService {
     try {
       final res = await _apiService.getBuyerDeals(status: status);
       if (res.data != null && res.data['success'] == true) {
-        final List list = res.data['deals'] ?? [];
+        final List list = res.data['data'] ?? res.data['deals'] ?? [];
         return list.map((item) => DealModel.fromJson(item)).toList();
       }
       return [];
@@ -34,11 +35,18 @@ class DealService {
 
   Future<DealModel> getDealById(String id) async {
     try {
-      final res = await _apiService.getDealById(id);
-      if (res.data != null && res.data['success'] == true && res.data['deal'] != null) {
-        return DealModel.fromJson(res.data['deal']);
+      final cleanId = id.trim();
+      if (cleanId.isEmpty) {
+        throw Exception('Invalid or missing deal ID.');
       }
-      throw Exception('Deal not found.');
+      final res = await _apiService.getDealById(cleanId);
+      if (res.data != null && res.data['success'] == true) {
+        final dealData = res.data['data'] ?? res.data['deal'];
+        if (dealData != null && dealData is Map<String, dynamic>) {
+          return DealModel.fromJson(dealData);
+        }
+      }
+      throw Exception(res.data?['message'] ?? 'Deal not found.');
     } catch (e) {
       rethrow;
     }
@@ -46,9 +54,16 @@ class DealService {
 
   Future<Map<String, dynamic>> getDealAgreement(String id) async {
     try {
-      final res = await _apiService.getDealAgreement(id);
-      if (res.data != null && res.data['success'] == true && res.data['data'] != null) {
-        return Map<String, dynamic>.from(res.data['data']);
+      final cleanId = id.trim();
+      if (cleanId.isEmpty) {
+        throw Exception('Invalid or missing deal ID.');
+      }
+      final res = await _apiService.getDealAgreement(cleanId);
+      if (res.data != null && res.data['success'] == true) {
+        final data = res.data['data'] ?? res.data['deal'];
+        if (data != null && data is Map<String, dynamic>) {
+          return Map<String, dynamic>.from(data);
+        }
       }
       throw Exception(res.data?['message'] ?? 'Unable to load deal agreement.');
     } catch (e) {
@@ -56,11 +71,18 @@ class DealService {
     }
   }
 
-  Future<Map<String, dynamic>> acceptDealAgreement(String id, {required bool agreeToTerms, int? agreementVersion}) async {
+  Future<Map<String, dynamic>> acceptDealAgreement(String id,
+      {required bool agreeToTerms, int? agreementVersion}) async {
     try {
-      final res = await _apiService.acceptDealAgreement(id, agreeToTerms: agreeToTerms, agreementVersion: agreementVersion);
+      final cleanId = id.trim();
+      if (cleanId.isEmpty) {
+        throw Exception('Invalid or missing deal ID.');
+      }
+      final res = await _apiService.acceptDealAgreement(cleanId,
+          agreeToTerms: agreeToTerms, agreementVersion: agreementVersion);
       if (res.data != null && res.data['success'] == true) {
-        return Map<String, dynamic>.from(res.data['data'] ?? {});
+        return Map<String, dynamic>.from(
+            res.data['data'] ?? res.data['deal'] ?? {});
       }
       throw Exception(res.data?['message'] ?? 'Failed to accept agreement.');
     } catch (e) {
@@ -68,11 +90,16 @@ class DealService {
     }
   }
 
-  Future<DealModel> updateDealAgreement(String id, Map<String, dynamic> data) async {
+  Future<DealModel> updateDealAgreement(
+      String id, Map<String, dynamic> data) async {
     try {
-      final res = await _apiService.updateDealAgreement(id, data);
-      if (res.data != null && res.data['success'] == true && res.data['data'] != null) {
-        return DealModel.fromJson(res.data['data']);
+      final cleanId = id.trim();
+      final res = await _apiService.updateDealAgreement(cleanId, data);
+      if (res.data != null && res.data['success'] == true) {
+        final dealData = res.data['data'] ?? res.data['deal'];
+        if (dealData != null && dealData is Map<String, dynamic>) {
+          return DealModel.fromJson(dealData);
+        }
       }
       throw Exception(res.data?['message'] ?? 'Failed to update agreement.');
     } catch (e) {
@@ -80,11 +107,17 @@ class DealService {
     }
   }
 
-  Future<DealModel> updateDealStatus(String id, String status, {String? notes}) async {
+  Future<DealModel> updateDealStatus(String id, String status,
+      {String? notes}) async {
     try {
-      final res = await _apiService.updateDealStatus(id, status, notes: notes);
-      if (res.data != null && res.data['success'] == true && res.data['deal'] != null) {
-        return DealModel.fromJson(res.data['deal']);
+      final cleanId = id.trim();
+      final res =
+          await _apiService.updateDealStatus(cleanId, status, notes: notes);
+      if (res.data != null && res.data['success'] == true) {
+        final dealData = res.data['data'] ?? res.data['deal'];
+        if (dealData != null && dealData is Map<String, dynamic>) {
+          return DealModel.fromJson(dealData);
+        }
       }
       throw Exception(res.data?['message'] ?? 'Failed to update deal status.');
     } catch (e) {
@@ -102,8 +135,9 @@ class DealService {
     double? otherCosts,
   }) async {
     try {
+      final cleanId = id.trim();
       final res = await _apiService.updateDealLogistics(
-        id,
+        cleanId,
         pickupLocation: pickupLocation,
         deliveryLocation: deliveryLocation,
         transportRequired: transportRequired,
@@ -111,8 +145,11 @@ class DealService {
         transportCost: transportCost,
         otherCosts: otherCosts,
       );
-      if (res.data != null && res.data['success'] == true && res.data['deal'] != null) {
-        return DealModel.fromJson(res.data['deal']);
+      if (res.data != null && res.data['success'] == true) {
+        final dealData = res.data['data'] ?? res.data['deal'];
+        if (dealData != null && dealData is Map<String, dynamic>) {
+          return DealModel.fromJson(dealData);
+        }
       }
       throw Exception(res.data?['message'] ?? 'Failed to update logistics.');
     } catch (e) {
@@ -122,11 +159,16 @@ class DealService {
 
   Future<DealModel> markDealDelivered(String id, {String? notes}) async {
     try {
-      final res = await _apiService.markDealDelivered(id, notes: notes);
-      if (res.data != null && res.data['success'] == true && res.data['deal'] != null) {
-        return DealModel.fromJson(res.data['deal']);
+      final cleanId = id.trim();
+      final res = await _apiService.markDealDelivered(cleanId, notes: notes);
+      if (res.data != null && res.data['success'] == true) {
+        final dealData = res.data['data'] ?? res.data['deal'];
+        if (dealData != null && dealData is Map<String, dynamic>) {
+          return DealModel.fromJson(dealData);
+        }
       }
-      throw Exception(res.data?['message'] ?? 'Failed to mark deal as delivered.');
+      throw Exception(
+          res.data?['message'] ?? 'Failed to mark deal as delivered.');
     } catch (e) {
       rethrow;
     }
@@ -134,9 +176,13 @@ class DealService {
 
   Future<DealModel> cancelDeal(String id, {required String reason}) async {
     try {
-      final res = await _apiService.cancelDeal(id, reason: reason);
-      if (res.data != null && res.data['success'] == true && res.data['deal'] != null) {
-        return DealModel.fromJson(res.data['deal']);
+      final cleanId = id.trim();
+      final res = await _apiService.cancelDeal(cleanId, reason: reason);
+      if (res.data != null && res.data['success'] == true) {
+        final dealData = res.data['data'] ?? res.data['deal'];
+        if (dealData != null && dealData is Map<String, dynamic>) {
+          return DealModel.fromJson(dealData);
+        }
       }
       throw Exception(res.data?['message'] ?? 'Failed to cancel deal.');
     } catch (e) {
@@ -144,11 +190,17 @@ class DealService {
     }
   }
 
-  Future<DealModel> reportPaymentMade(String id, {String? notes, String? paymentMethod}) async {
+  Future<DealModel> reportPaymentMade(String id,
+      {String? notes, String? paymentMethod}) async {
     try {
-      final res = await _apiService.reportPaymentMade(id, notes: notes, paymentMethod: paymentMethod);
-      if (res.data != null && res.data['success'] == true && res.data['deal'] != null) {
-        return DealModel.fromJson(res.data['deal']);
+      final cleanId = id.trim();
+      final res = await _apiService.reportPaymentMade(cleanId,
+          notes: notes, paymentMethod: paymentMethod);
+      if (res.data != null && res.data['success'] == true) {
+        final dealData = res.data['data'] ?? res.data['deal'];
+        if (dealData != null && dealData is Map<String, dynamic>) {
+          return DealModel.fromJson(dealData);
+        }
       }
       throw Exception(res.data?['message'] ?? 'Failed to report payment.');
     } catch (e) {
@@ -158,9 +210,14 @@ class DealService {
 
   Future<DealModel> confirmPaymentReceived(String id, {String? notes}) async {
     try {
-      final res = await _apiService.confirmPaymentReceived(id, notes: notes);
-      if (res.data != null && res.data['success'] == true && res.data['deal'] != null) {
-        return DealModel.fromJson(res.data['deal']);
+      final cleanId = id.trim();
+      final res =
+          await _apiService.confirmPaymentReceived(cleanId, notes: notes);
+      if (res.data != null && res.data['success'] == true) {
+        final dealData = res.data['data'] ?? res.data['deal'];
+        if (dealData != null && dealData is Map<String, dynamic>) {
+          return DealModel.fromJson(dealData);
+        }
       }
       throw Exception(res.data?['message'] ?? 'Failed to confirm payment.');
     } catch (e) {
@@ -170,9 +227,13 @@ class DealService {
 
   Future<DealModel> disputePayment(String id, {required String reason}) async {
     try {
-      final res = await _apiService.disputePayment(id, reason: reason);
-      if (res.data != null && res.data['success'] == true && res.data['deal'] != null) {
-        return DealModel.fromJson(res.data['deal']);
+      final cleanId = id.trim();
+      final res = await _apiService.disputePayment(cleanId, reason: reason);
+      if (res.data != null && res.data['success'] == true) {
+        final dealData = res.data['data'] ?? res.data['deal'];
+        if (dealData != null && dealData is Map<String, dynamic>) {
+          return DealModel.fromJson(dealData);
+        }
       }
       throw Exception(res.data?['message'] ?? 'Failed to dispute payment.');
     } catch (e) {
@@ -187,8 +248,9 @@ class DealService {
     Map<String, dynamic>? categoryRatings,
   }) async {
     try {
+      final cleanId = id.trim();
       final res = await _apiService.rateDeal(
-        id,
+        cleanId,
         rating: rating,
         feedback: feedback,
         categoryRatings: categoryRatings,

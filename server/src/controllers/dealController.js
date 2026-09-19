@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Deal = require('../models/Deal');
 const Opportunity = require('../models/Opportunity');
 const Crop = require('../models/Crop');
@@ -7,6 +8,73 @@ const Notification = require('../models/Notification');
 const Rating = require('../models/Rating');
 const { calculateHaversineDistance, buildGoogleMapsUrl } = require('../utils/geoUtils');
 const { getUserRatingStats } = require('../utils/ratingHelper');
+const { resolvePartyLocation, sanitizeAddress, formatAddressParts } = require('../utils/locationResolver');
+
+/**
+ * Enhances a Deal document/object with guaranteed valid coordinates,
+ * complete sanitized addresses, and valid Google Maps URLs (never ",").
+ * @param {object} dealDoc
+ * @returns {object|null}
+ */
+const enhanceDealPayload = (dealDoc) => {
+  if (!dealDoc) return null;
+  const dealObj = typeof dealDoc.toObject === 'function' ? dealDoc.toObject() : { ...dealDoc };
+
+  const farmerResolved = resolvePartyLocation({
+    user: dealObj.farmerId,
+    crop: dealObj.cropId || dealObj.farmerCropId,
+    existingLocation: dealObj.pickupLocation,
+    partyLabel: dealObj.farmerId?.name || 'Farmer Pickup',
+  });
+
+  const buyerResolved = resolvePartyLocation({
+    user: dealObj.buyerId,
+    requirement: dealObj.requirementId || dealObj.buyerRequirementId,
+    existingLocation: dealObj.deliveryLocation,
+    partyLabel: dealObj.buyerId?.businessName || dealObj.buyerId?.name || 'Buyer Delivery',
+  });
+
+  dealObj.pickupLocation = {
+    address: farmerResolved.address,
+    latitude: farmerResolved.latitude,
+    longitude: farmerResolved.longitude,
+    mapsUrl: farmerResolved.mapsUrl,
+  };
+
+  dealObj.deliveryLocation = {
+    address: buyerResolved.address,
+    latitude: buyerResolved.latitude,
+    longitude: buyerResolved.longitude,
+    mapsUrl: buyerResolved.mapsUrl,
+  };
+
+  dealObj.pickupAddress = farmerResolved.address;
+  dealObj.deliveryAddress = buyerResolved.address;
+  dealObj.pickupLat = farmerResolved.latitude;
+  dealObj.pickupLng = farmerResolved.longitude;
+  dealObj.deliveryLat = buyerResolved.latitude;
+  dealObj.deliveryLng = buyerResolved.longitude;
+  dealObj.pickupMapsUrl = farmerResolved.mapsUrl;
+  dealObj.deliveryMapsUrl = buyerResolved.mapsUrl;
+
+  if (dealObj.farmerId && typeof dealObj.farmerId === 'object') {
+    dealObj.farmer = {
+      ...dealObj.farmerId,
+      location: farmerResolved.address || dealObj.farmerId.address || '',
+      ratingStats: dealObj.farmer?.ratingStats || dealObj.farmerId.ratingStats,
+    };
+  }
+
+  if (dealObj.buyerId && typeof dealObj.buyerId === 'object') {
+    dealObj.buyer = {
+      ...dealObj.buyerId,
+      location: buyerResolved.address || dealObj.buyerId.address || '',
+      ratingStats: dealObj.buyer?.ratingStats || dealObj.buyerId.ratingStats,
+    };
+  }
+
+  return dealObj;
+};
 
 /**
  * Creates or retrieves a Deal from an ACCEPTED Opportunity
@@ -55,54 +123,47 @@ const createDealFromOpportunity = async (req, res, next) => {
     // Check if Deal already exists for this opportunity
     let existingDeal = await Deal.findOne({ opportunityId });
     if (existingDeal) {
+      const enhanced = enhanceDealPayload(existingDeal);
       return res.status(200).json({
         success: true,
         message: 'Deal already exists for this opportunity',
-        data: existingDeal,
+        data: enhanced,
+        deal: enhanced,
       });
     }
 
     // Fetch Farmer and Buyer details for location & coordinates
-    const farmer = await User.findById(opportunity.farmerId).select('name phone location coordinates district state').lean();
-    const buyer = await User.findById(opportunity.buyerId).select('name phone location coordinates businessName district state').lean();
+    const farmer = await User.findById(opportunity.farmerId).select('name phone address city location coordinates district state').lean();
+    const buyer = await User.findById(opportunity.buyerId).select('name phone address city location coordinates businessName district state').lean();
 
     // Fetch crop details if available
     let cropDetails = null;
-    if (opportunity.cropId || opportunity.farmerCropId) {
-      cropDetails = await Crop.findById(opportunity.cropId || opportunity.farmerCropId).lean();
+    const cropTargetId = opportunity.cropId || opportunity.farmerCropId;
+    if (cropTargetId) {
+      cropDetails = await Crop.findById(cropTargetId).lean();
     }
 
-    // Compute coordinates & distance
-    let pickupLat = null;
-    let pickupLng = null;
-    let pickupAddr = farmer ? (farmer.address || `${farmer.district || ''}, ${farmer.state || ''}`) : '';
-
-    if (farmer && farmer.location && Array.isArray(farmer.location.coordinates) && farmer.location.coordinates.length === 2) {
-      pickupLng = farmer.location.coordinates[0];
-      pickupLat = farmer.location.coordinates[1];
-    } else if (farmer && farmer.coordinates && farmer.coordinates.latitude != null) {
-      pickupLat = farmer.coordinates.latitude;
-      pickupLng = farmer.coordinates.longitude;
-    } else if (cropDetails && cropDetails.coordinates && cropDetails.coordinates.latitude != null) {
-      pickupLat = cropDetails.coordinates.latitude;
-      pickupLng = cropDetails.coordinates.longitude;
+    let reqDetails = null;
+    const reqTargetId = opportunity.requirementId || opportunity.buyerRequirementId;
+    if (reqTargetId) {
+      reqDetails = await BuyerRequirement.findById(reqTargetId).lean();
     }
 
-    let deliveryLat = null;
-    let deliveryLng = null;
-    let deliveryAddr = buyer ? (buyer.address || `${buyer.district || ''}, ${buyer.state || ''}`) : '';
+    const farmerResolved = resolvePartyLocation({
+      user: farmer,
+      crop: cropDetails,
+      partyLabel: farmer?.name || 'Farmer Pickup',
+    });
 
-    if (buyer && buyer.location && Array.isArray(buyer.location.coordinates) && buyer.location.coordinates.length === 2) {
-      deliveryLng = buyer.location.coordinates[0];
-      deliveryLat = buyer.location.coordinates[1];
-    } else if (buyer && buyer.coordinates && buyer.coordinates.latitude != null) {
-      deliveryLat = buyer.coordinates.latitude;
-      deliveryLng = buyer.coordinates.longitude;
-    }
+    const buyerResolved = resolvePartyLocation({
+      user: buyer,
+      requirement: reqDetails,
+      partyLabel: buyer?.businessName || buyer?.name || 'Buyer Delivery',
+    });
 
     let distance = null;
-    if (pickupLat != null && pickupLng != null && deliveryLat != null && deliveryLng != null) {
-      distance = calculateHaversineDistance(pickupLat, pickupLng, deliveryLat, deliveryLng);
+    if (farmerResolved.latitude && farmerResolved.longitude && buyerResolved.latitude && buyerResolved.longitude) {
+      distance = calculateHaversineDistance(farmerResolved.latitude, farmerResolved.longitude, buyerResolved.latitude, buyerResolved.longitude);
     }
 
     const newDeal = new Deal({
@@ -129,14 +190,14 @@ const createDealFromOpportunity = async (req, res, next) => {
       agreementVersion: 1,
       termsAcceptedVersion: 1,
       pickupLocation: {
-        address: pickupAddr,
-        latitude: pickupLat,
-        longitude: pickupLng,
+        address: farmerResolved.address,
+        latitude: farmerResolved.latitude,
+        longitude: farmerResolved.longitude,
       },
       deliveryLocation: {
-        address: deliveryAddr,
-        latitude: deliveryLat,
-        longitude: deliveryLng,
+        address: buyerResolved.address,
+        latitude: buyerResolved.latitude,
+        longitude: buyerResolved.longitude,
       },
       distanceKm: distance,
       transportRequired: true,
@@ -166,10 +227,13 @@ const createDealFromOpportunity = async (req, res, next) => {
       opportunityId: opportunity._id,
     });
 
+    const enhancedNewDeal = enhanceDealPayload(newDeal);
+
     res.status(201).json({
       success: true,
       message: 'Official Deal Agreement created successfully in pending state',
-      data: newDeal,
+      data: enhancedNewDeal,
+      deal: enhancedNewDeal,
     });
   } catch (error) {
     next(error);
@@ -193,18 +257,25 @@ const getFarmerDeals = async (req, res, next) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const deals = await Deal.find(query)
-      .populate('buyerId', 'name phone location businessName coordinates ratingStats')
+      .populate('farmerId', 'name phone address city district state location coordinates ratingStats')
+      .populate('buyerId', 'name phone address city district state businessName location coordinates ratingStats')
+      .populate('cropId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('farmerCropId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('requirementId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('buyerRequirementId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
       .populate('opportunityId', 'status offeredPrice')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
+    const enhancedDeals = deals.map(enhanceDealPayload);
     const total = await Deal.countDocuments(query);
 
     res.status(200).json({
       success: true,
-      data: deals,
+      data: enhancedDeals,
+      deals: enhancedDeals,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -234,18 +305,25 @@ const getBuyerDeals = async (req, res, next) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const deals = await Deal.find(query)
-      .populate('farmerId', 'name phone location coordinates ratingStats')
+      .populate('farmerId', 'name phone address city district state location coordinates ratingStats')
+      .populate('buyerId', 'name phone address city district state businessName location coordinates ratingStats')
+      .populate('cropId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('farmerCropId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('requirementId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('buyerRequirementId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
       .populate('opportunityId', 'status offeredPrice')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
+    const enhancedDeals = deals.map(enhanceDealPayload);
     const total = await Deal.countDocuments(query);
 
     res.status(200).json({
       success: true,
-      data: deals,
+      data: enhancedDeals,
+      deals: enhancedDeals,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -266,9 +344,21 @@ const getBuyerDeals = async (req, res, next) => {
 const getDealById = async (req, res, next) => {
   try {
     const currentUserId = req.user.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Deal ID format',
+      });
+    }
+
     const deal = await Deal.findById(req.params.id)
-      .populate('farmerId', 'name phone location coordinates district state')
-      .populate('buyerId', 'name phone location coordinates businessName district state')
+      .populate('farmerId', 'name phone address city district state location coordinates')
+      .populate('buyerId', 'name phone address city district state businessName location coordinates')
+      .populate('cropId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('farmerCropId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('requirementId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('buyerRequirementId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
       .populate('opportunityId');
 
     if (!deal) {
@@ -278,10 +368,13 @@ const getDealById = async (req, res, next) => {
       });
     }
 
-    const isFarmer = deal.farmerId._id.toString() === currentUserId;
-    const isBuyer = deal.buyerId._id.toString() === currentUserId;
+    const farmerIdStr = deal.farmerId?._id?.toString() || deal.farmerId?.toString();
+    const buyerIdStr = deal.buyerId?._id?.toString() || deal.buyerId?.toString();
+    const isFarmer = farmerIdStr === currentUserId;
+    const isBuyer = buyerIdStr === currentUserId;
+    const isAdmin = req.user.role === 'ADMIN';
 
-    if (!isFarmer && !isBuyer) {
+    if (!isFarmer && !isBuyer && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You are not a party to this deal.',
@@ -289,35 +382,21 @@ const getDealById = async (req, res, next) => {
     }
 
     // Fetch rating statistics
-    const farmerStats = await getUserRatingStats(deal.farmerId._id, 'FARMER');
-    const buyerStats = await getUserRatingStats(deal.buyerId._id, 'BUYER');
+    const farmerStats = await getUserRatingStats(deal.farmerId._id || deal.farmerId, 'FARMER');
+    const buyerStats = await getUserRatingStats(deal.buyerId._id || deal.buyerId, 'BUYER');
 
-    // Build Google Maps URLs
-    let pickupMapsUrl = null;
-    if (deal.pickupLocation && deal.pickupLocation.latitude != null && deal.pickupLocation.longitude != null) {
-      pickupMapsUrl = `https://www.google.com/maps/search/?api=1&query=${deal.pickupLocation.latitude},${deal.pickupLocation.longitude}`;
+    const dealObj = enhanceDealPayload(deal);
+    if (dealObj.farmer) {
+      dealObj.farmer.ratingStats = farmerStats;
     }
-
-    let deliveryMapsUrl = null;
-    if (deal.deliveryLocation && deal.deliveryLocation.latitude != null && deal.deliveryLocation.longitude != null) {
-      deliveryMapsUrl = `https://www.google.com/maps/search/?api=1&query=${deal.deliveryLocation.latitude},${deal.deliveryLocation.longitude}`;
+    if (dealObj.buyer) {
+      dealObj.buyer.ratingStats = buyerStats;
     }
-
-    const dealObj = deal.toObject();
-    dealObj.farmer = {
-      ...dealObj.farmerId,
-      ratingStats: farmerStats,
-    };
-    dealObj.buyer = {
-      ...dealObj.buyerId,
-      ratingStats: buyerStats,
-    };
-    dealObj.pickupMapsUrl = pickupMapsUrl;
-    dealObj.deliveryMapsUrl = deliveryMapsUrl;
 
     res.status(200).json({
       success: true,
       data: dealObj,
+      deal: dealObj,
     });
   } catch (error) {
     next(error);
@@ -410,6 +489,7 @@ const updateDealStatus = async (req, res, next) => {
       success: true,
       message: `Deal status updated to ${deal.status}`,
       data: deal,
+      deal: deal,
     });
   } catch (error) {
     next(error);
@@ -456,7 +536,7 @@ const updateDealLogistics = async (req, res, next) => {
 
     if (pickupLocation && typeof pickupLocation === 'object') {
       deal.pickupLocation = {
-        address: pickupLocation.address || deal.pickupLocation.address,
+        address: pickupLocation.address !== undefined ? sanitizeAddress(pickupLocation.address) : (deal.pickupLocation.address || ''),
         latitude: pickupLocation.latitude != null ? pickupLocation.latitude : deal.pickupLocation.latitude,
         longitude: pickupLocation.longitude != null ? pickupLocation.longitude : deal.pickupLocation.longitude,
       };
@@ -464,7 +544,7 @@ const updateDealLogistics = async (req, res, next) => {
 
     if (deliveryLocation && typeof deliveryLocation === 'object') {
       deal.deliveryLocation = {
-        address: deliveryLocation.address || deal.deliveryLocation.address,
+        address: deliveryLocation.address !== undefined ? sanitizeAddress(deliveryLocation.address) : (deal.deliveryLocation.address || ''),
         latitude: deliveryLocation.latitude != null ? deliveryLocation.latitude : deal.deliveryLocation.latitude,
         longitude: deliveryLocation.longitude != null ? deliveryLocation.longitude : deal.deliveryLocation.longitude,
       };
@@ -512,10 +592,13 @@ const updateDealLogistics = async (req, res, next) => {
       opportunityId: deal.opportunityId,
     });
 
+    const enhancedDeal = enhanceDealPayload(deal);
+
     res.status(200).json({
       success: true,
       message: 'Logistics details updated successfully',
-      data: deal,
+      data: enhancedDeal,
+      deal: enhancedDeal,
     });
   } catch (error) {
     next(error);
@@ -588,6 +671,7 @@ const markDelivered = async (req, res, next) => {
       success: true,
       message: 'Deal marked as delivered successfully',
       data: deal,
+      deal: deal,
     });
   } catch (error) {
     next(error);
@@ -667,6 +751,7 @@ const cancelDeal = async (req, res, next) => {
       success: true,
       message: 'Deal cancelled successfully',
       data: deal,
+      deal: deal,
     });
   } catch (error) {
     next(error);
@@ -738,6 +823,7 @@ const reportPaymentMade = async (req, res, next) => {
       success: true,
       message: 'Payment report submitted. Waiting for receiving party to confirm receipt.',
       data: deal,
+      deal: deal,
     });
   } catch (error) {
     next(error);
@@ -822,6 +908,7 @@ const confirmPaymentReceived = async (req, res, next) => {
       success: true,
       message: 'Payment receipt confirmed successfully.',
       data: deal,
+      deal: deal,
     });
   } catch (error) {
     next(error);
@@ -883,6 +970,7 @@ const disputePayment = async (req, res, next) => {
       success: true,
       message: 'Payment issue recorded. Please resolve payment directly between the Farmer and Buyer.',
       data: deal,
+      deal: deal,
     });
   } catch (error) {
     next(error);
@@ -1029,9 +1117,21 @@ const rateDeal = async (req, res, next) => {
 const getDealAgreement = async (req, res, next) => {
   try {
     const currentUserId = req.user.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Deal ID format',
+      });
+    }
+
     const deal = await Deal.findById(req.params.id)
       .populate('farmerId', 'name phone location address city district state coordinates ratingStats')
       .populate('buyerId', 'name phone location address city district state businessName coordinates ratingStats')
+      .populate('cropId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('farmerCropId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('requirementId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
+      .populate('buyerRequirementId', 'commodity cropName variety grade quantity state district market location locationCoordinates')
       .lean();
 
     if (!deal) {
@@ -1058,91 +1158,127 @@ const getDealAgreement = async (req, res, next) => {
     const farmer = deal.farmerId || {};
     const buyer = deal.buyerId || {};
 
-    const pLat = deal.pickupLocation?.latitude || farmer.coordinates?.latitude;
-    const pLng = deal.pickupLocation?.longitude || farmer.coordinates?.longitude;
-    const dLat = deal.deliveryLocation?.latitude || buyer.coordinates?.latitude;
-    const dLng = deal.deliveryLocation?.longitude || buyer.coordinates?.longitude;
+    const farmerResolved = resolvePartyLocation({
+      user: farmer,
+      crop: deal.cropId || deal.farmerCropId,
+      existingLocation: deal.pickupLocation,
+      partyLabel: farmer.name || 'Farmer Pickup',
+    });
 
-    const pickupMapsUrl = pLat && pLng ? `https://www.google.com/maps/search/?api=1&query=${pLat},${pLng}` : null;
-    const deliveryMapsUrl = dLat && dLng ? `https://www.google.com/maps/search/?api=1&query=${dLat},${dLng}` : null;
+    const buyerResolved = resolvePartyLocation({
+      user: buyer,
+      requirement: deal.requirementId || deal.buyerRequirementId,
+      existingLocation: deal.deliveryLocation,
+      partyLabel: buyer.businessName || buyer.name || 'Buyer Delivery',
+    });
+
+    const pLat = farmerResolved.latitude;
+    const pLng = farmerResolved.longitude;
+    const dLat = buyerResolved.latitude;
+    const dLng = buyerResolved.longitude;
+
+    const pickupMapsUrl = farmerResolved.mapsUrl;
+    const deliveryMapsUrl = buyerResolved.mapsUrl;
 
     const termsAndConditions = [
-      '1. Both Farmer and Buyer agree to the crop and quantity specified in this agreement.',
-      '2. Both parties agree to the mutually agreed price shown in the agreement.',
-      '3. Both parties are responsible for following the agreed delivery/pickup details.',
-      '4. Any changes to the deal should be mutually agreed upon.',
-      '5. FarmFlow records the agreement between the parties but does not guarantee the quality, delivery, or external payment unless explicitly supported by a verified service.',
-      '6. Actual payment is handled between the Farmer and Buyer unless a genuine payment provider is integrated.',
-      '7. FarmFlow does not consider screenshots or user-entered payment claims as verified payment.',
-      '8. Both parties should review the agreement before accepting it.'
+      'Both parties mutually agree to the displayed crop, quantity, price and terms.',
+      'Both parties are responsible for fulfilling their agreed obligations.',
+      'The agreement is recorded digitally in FarmFlow.',
+      'Any payment/delivery confirmation must be completed through the application\'s supported flow.',
     ];
 
-    const isFullyConfirmed = deal.agreementStatus === 'DEAL_CONFIRMED' || (deal.farmerAccepted && deal.buyerAccepted);
+    const farmerAccepted = Boolean(deal.farmerAgreementAccepted || deal.farmerAccepted);
+    const buyerAccepted = Boolean(deal.buyerAgreementAccepted || deal.buyerAccepted);
+    const isFullyConfirmed = deal.agreementStatus === 'DEAL_CONFIRMED' || (farmerAccepted && buyerAccepted);
+
+    let confirmationStatusText = 'Agreement Pending';
+    if (isFullyConfirmed) {
+      confirmationStatusText = 'Deal Agreement Confirmed';
+    } else if (farmerAccepted) {
+      confirmationStatusText = 'Waiting for Buyer confirmation';
+    } else if (buyerAccepted) {
+      confirmationStatusText = 'Waiting for Farmer confirmation';
+    }
+
+    const responsePayload = {
+      dealId: deal._id.toString(),
+      agreementVersion: deal.agreementVersion || 1,
+      agreementStatus: deal.agreementStatus || 'AGREEMENT_PENDING',
+      dealStatus: deal.status,
+      confirmationStatusText,
+      farmerAccepted,
+      farmerAgreementAccepted: farmerAccepted,
+      buyerAccepted,
+      buyerAgreementAccepted: buyerAccepted,
+      farmerAcceptedAt: deal.farmerAcceptedAt,
+      buyerAcceptedAt: deal.buyerAcceptedAt,
+      grossDealValue: deal.totalAmount,
+      farmer: {
+        id: farmer._id ? farmer._id.toString() : farmerIdStr,
+        name: farmer.name || 'Farmer',
+        phone: farmer.phone || '',
+        location: farmerResolved.address || farmer.address || '',
+        hasAccepted: farmerAccepted,
+        acceptedAt: deal.farmerAcceptedAt,
+      },
+      buyer: {
+        id: buyer._id ? buyer._id.toString() : buyerIdStr,
+        name: buyer.name || 'Buyer',
+        businessName: buyer.businessName || '',
+        phone: buyer.phone || '',
+        location: buyerResolved.address || buyer.address || '',
+        hasAccepted: buyerAccepted,
+        acceptedAt: deal.buyerAcceptedAt,
+      },
+      commodity: deal.commodity,
+      crop: deal.crop || deal.commodity,
+      variety: deal.variety || '',
+      quantity: deal.quantity,
+      unit: 'Quintal',
+      quantityUnit: 'Quintal',
+      agreedPrice: deal.agreedPrice,
+      priceUnit: '₹ / Quintal',
+      totalAmount: deal.totalAmount,
+      agreedDate: deal.agreedDate,
+      dealDate: deal.agreedDate,
+      deliveryDate: deal.deliveryDate,
+      pickupLocation: {
+        address: farmerResolved.address,
+        latitude: pLat,
+        longitude: pLng,
+        mapsUrl: pickupMapsUrl,
+      },
+      deliveryLocation: {
+        address: buyerResolved.address,
+        latitude: dLat,
+        longitude: dLng,
+        mapsUrl: deliveryMapsUrl,
+      },
+      pickupAddress: farmerResolved.address,
+      deliveryAddress: buyerResolved.address,
+      pickupLat: pLat,
+      pickupLng: pLng,
+      deliveryLat: dLat,
+      deliveryLng: dLng,
+      pickupMapsUrl,
+      deliveryMapsUrl,
+      distanceKm: deal.distanceKm,
+      transportRequired: deal.transportRequired !== false,
+      transportType: deal.transportType || 'Standard Road Transport',
+      transportCost: deal.transportCost || 0,
+      otherCosts: deal.otherCosts || 0,
+      estimatedNetReturn: deal.estimatedNetReturn || (deal.totalAmount - (deal.transportCost || 0) - (deal.otherCosts || 0)),
+      estimatedTotalBuyerCost: deal.estimatedTotalBuyerCost || (deal.totalAmount + (deal.transportCost || 0) + (deal.otherCosts || 0)),
+      termsAndConditions,
+      currentUserRole: isFarmer ? 'FARMER' : 'BUYER',
+      userHasAccepted: isFarmer ? farmerAccepted : buyerAccepted,
+      isFullyConfirmed,
+    };
 
     res.status(200).json({
       success: true,
-      data: {
-        dealId: deal._id.toString(),
-        agreementVersion: deal.agreementVersion || 1,
-        agreementStatus: deal.agreementStatus || 'AGREEMENT_PENDING',
-        dealStatus: deal.status,
-        farmerAccepted: Boolean(deal.farmerAccepted),
-        buyerAccepted: Boolean(deal.buyerAccepted),
-        farmerAcceptedAt: deal.farmerAcceptedAt,
-        buyerAcceptedAt: deal.buyerAcceptedAt,
-        grossDealValue: deal.totalAmount,
-        farmer: {
-          id: farmer._id ? farmer._id.toString() : farmerIdStr,
-          name: farmer.name || 'Farmer',
-          phone: farmer.phone || '',
-          location: deal.pickupLocation?.address || farmer.address || farmer.location || '',
-          hasAccepted: Boolean(deal.farmerAccepted),
-          acceptedAt: deal.farmerAcceptedAt,
-        },
-        buyer: {
-          id: buyer._id ? buyer._id.toString() : buyerIdStr,
-          name: buyer.name || 'Buyer',
-          businessName: buyer.businessName || '',
-          phone: buyer.phone || '',
-          location: deal.deliveryLocation?.address || buyer.address || buyer.location || '',
-          hasAccepted: Boolean(deal.buyerAccepted),
-          acceptedAt: deal.buyerAcceptedAt,
-        },
-        commodity: deal.commodity,
-        crop: deal.crop || deal.commodity,
-        variety: deal.variety || '',
-        quantity: deal.quantity,
-        unit: 'Quintal',
-        quantityUnit: 'Quintal',
-        agreedPrice: deal.agreedPrice,
-        priceUnit: '₹ / Quintal',
-        totalAmount: deal.totalAmount,
-        agreedDate: deal.agreedDate,
-        deliveryDate: deal.deliveryDate,
-        pickupLocation: {
-          address: deal.pickupLocation?.address || '',
-          latitude: pLat,
-          longitude: pLng,
-          mapsUrl: pickupMapsUrl,
-        },
-        deliveryLocation: {
-          address: deal.deliveryLocation?.address || '',
-          latitude: dLat,
-          longitude: dLng,
-          mapsUrl: deliveryMapsUrl,
-        },
-        distanceKm: deal.distanceKm,
-        transportRequired: deal.transportRequired !== false,
-        transportType: deal.transportType || 'Standard Road Transport',
-        transportCost: deal.transportCost || 0,
-        otherCosts: deal.otherCosts || 0,
-        estimatedNetReturn: deal.estimatedNetReturn || (deal.totalAmount - (deal.transportCost || 0) - (deal.otherCosts || 0)),
-        estimatedTotalBuyerCost: deal.estimatedTotalBuyerCost || (deal.totalAmount + (deal.transportCost || 0) + (deal.otherCosts || 0)),
-        termsAndConditions,
-        currentUserRole: isFarmer ? 'FARMER' : 'BUYER',
-        userHasAccepted: isFarmer ? Boolean(deal.farmerAccepted) : Boolean(deal.buyerAccepted),
-        isFullyConfirmed,
-      },
+      data: responsePayload,
+      deal: responsePayload,
     });
   } catch (error) {
     next(error);
@@ -1158,6 +1294,13 @@ const acceptDealAgreement = async (req, res, next) => {
   try {
     const currentUserId = req.user.userId;
     const { agreeToTerms, hasReviewedAndAgreed, agreementVersion } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Deal ID format',
+      });
+    }
 
     const hasCheckedAgreement = agreeToTerms === true || agreeToTerms === 'true' || hasReviewedAndAgreed === true || hasReviewedAndAgreed === 'true';
 
@@ -1202,35 +1345,37 @@ const acceptDealAgreement = async (req, res, next) => {
     }
 
     if (isFarmer) {
-      if (deal.farmerAccepted) {
+      if (deal.farmerAgreementAccepted || deal.farmerAccepted) {
         return res.status(400).json({
           success: false,
           message: 'You have already accepted this agreement version.',
         });
       }
       deal.farmerAccepted = true;
+      deal.farmerAgreementAccepted = true;
       deal.farmerAcceptedAt = new Date();
     } else if (isBuyer) {
-      if (deal.buyerAccepted) {
+      if (deal.buyerAgreementAccepted || deal.buyerAccepted) {
         return res.status(400).json({
           success: false,
           message: 'You have already accepted this agreement version.',
         });
       }
       deal.buyerAccepted = true;
+      deal.buyerAgreementAccepted = true;
       deal.buyerAcceptedAt = new Date();
     }
 
     // Determine mutual acceptance state
-    const bothAccepted = deal.farmerAccepted && deal.buyerAccepted;
+    const bothAccepted = (deal.farmerAccepted || deal.farmerAgreementAccepted) && (deal.buyerAccepted || deal.buyerAgreementAccepted);
 
     if (bothAccepted) {
       deal.agreementStatus = 'DEAL_CONFIRMED';
       deal.status = 'DEAL_CONFIRMED';
-    } else if (deal.farmerAccepted) {
+    } else if (deal.farmerAccepted || deal.farmerAgreementAccepted) {
       deal.agreementStatus = 'WAITING_FOR_BUYER';
       deal.status = 'WAITING_FOR_BUYER';
-    } else if (deal.buyerAccepted) {
+    } else if (deal.buyerAccepted || deal.buyerAgreementAccepted) {
       deal.agreementStatus = 'WAITING_FOR_FARMER';
       deal.status = 'WAITING_FOR_FARMER';
     }
@@ -1247,8 +1392,8 @@ const acceptDealAgreement = async (req, res, next) => {
         userId: deal.farmerId,
         recipientRole: 'FARMER',
         type: 'DEAL_CONFIRMED',
-        title: 'Deal Confirmed!',
-        message: `Mutual Agreement Confirmed! Both Farmer and Buyer have accepted terms for ${deal.commodity} (${deal.quantity} Quintals). Deal is now officially confirmed.`,
+        title: 'Deal Agreement Confirmed!',
+        message: `Deal Agreement Confirmed! Both Farmer and Buyer have accepted terms for ${deal.commodity} (${deal.quantity} Quintals). Deal is now officially confirmed.`,
         crop: deal.commodity,
         dealId: deal._id,
         opportunityId: deal.opportunityId,
@@ -1258,14 +1403,14 @@ const acceptDealAgreement = async (req, res, next) => {
         userId: deal.buyerId,
         recipientRole: 'BUYER',
         type: 'DEAL_CONFIRMED',
-        title: 'Deal Confirmed!',
-        message: `Mutual Agreement Confirmed! Both Farmer and Buyer have accepted terms for ${deal.commodity} (${deal.quantity} Quintals). Deal is now officially confirmed.`,
+        title: 'Deal Agreement Confirmed!',
+        message: `Deal Agreement Confirmed! Both Farmer and Buyer have accepted terms for ${deal.commodity} (${deal.quantity} Quintals). Deal is now officially confirmed.`,
         crop: deal.commodity,
         dealId: deal._id,
         opportunityId: deal.opportunityId,
       });
     } else {
-      // Notify counterparty that one party has signed
+      // Notify counterparty that one party has confirmed
       await Notification.create({
         userId: recipientUserId,
         recipientRole,
@@ -1278,22 +1423,38 @@ const acceptDealAgreement = async (req, res, next) => {
       });
     }
 
+    const message = bothAccepted
+      ? 'Deal Agreement Confirmed'
+      : (isFarmer ? 'Waiting for Buyer confirmation' : 'Waiting for Farmer confirmation');
+
     res.status(200).json({
       success: true,
-      message: bothAccepted
-        ? 'Mutual agreement complete! Deal is officially confirmed.'
-        : `Agreement accepted. Waiting for ${isFarmer ? 'Buyer' : 'Farmer'} acceptance.`,
+      message,
+      bothAccepted,
+      agreementStatus: deal.agreementStatus,
+      status: deal.status,
+      dealId: deal._id.toString(),
+      farmerAccepted: deal.farmerAccepted,
+      farmerAgreementAccepted: deal.farmerAgreementAccepted,
+      farmerAcceptedAt: deal.farmerAcceptedAt,
+      buyerAccepted: deal.buyerAccepted,
+      buyerAgreementAccepted: deal.buyerAgreementAccepted,
+      buyerAcceptedAt: deal.buyerAcceptedAt,
       data: {
         dealId: deal._id.toString(),
         agreementStatus: deal.agreementStatus,
         status: deal.status,
         farmerAccepted: deal.farmerAccepted,
+        farmerAgreementAccepted: deal.farmerAgreementAccepted,
         farmerAcceptedAt: deal.farmerAcceptedAt,
         buyerAccepted: deal.buyerAccepted,
+        buyerAgreementAccepted: deal.buyerAgreementAccepted,
         buyerAcceptedAt: deal.buyerAcceptedAt,
         agreementVersion: deal.agreementVersion,
         bothAccepted,
+        confirmationStatusText: bothAccepted ? 'Deal Agreement Confirmed' : (isFarmer ? 'Waiting for Buyer confirmation' : 'Waiting for Farmer confirmation'),
       },
+      deal: deal,
     });
   } catch (error) {
     next(error);
@@ -1385,19 +1546,21 @@ const updateDealAgreement = async (req, res, next) => {
     }
 
     if (pickupAddress !== undefined) {
-      deal.pickupLocation.address = pickupAddress;
+      deal.pickupLocation.address = sanitizeAddress(pickupAddress);
       hasChanges = true;
     }
 
     if (deliveryAddress !== undefined) {
-      deal.deliveryLocation.address = deliveryAddress;
+      deal.deliveryLocation.address = sanitizeAddress(deliveryAddress);
       hasChanges = true;
     }
 
     if (hasChanges) {
       // Invalidate old acceptance states and increment version
       deal.farmerAccepted = false;
+      deal.farmerAgreementAccepted = false;
       deal.buyerAccepted = false;
+      deal.buyerAgreementAccepted = false;
       deal.farmerAcceptedAt = null;
       deal.buyerAcceptedAt = null;
       deal.agreementVersion = (deal.agreementVersion || 1) + 1;

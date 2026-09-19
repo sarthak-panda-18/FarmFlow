@@ -50,29 +50,30 @@ GoRouter createRouter(AuthProvider authProvider) {
       final isAuthRoute = currentLocation == AppConstants.routeLogin ||
           currentLocation == AppConstants.routeRegister;
 
-      final isFarmerRoute = currentLocation == AppConstants.routeFarmerDashboard ||
-          currentLocation == AppConstants.routeFarmerProfile ||
-          currentLocation == AppConstants.routeFarmerVerification ||
-          currentLocation == AppConstants.routeMyCrops ||
-          currentLocation == AppConstants.routeAddCrop ||
-          currentLocation == AppConstants.routeEditCrop ||
-          currentLocation == AppConstants.routeCropDetail ||
-          currentLocation == AppConstants.routeFarmerRecommendations ||
-          currentLocation == AppConstants.routeFarmerOpportunities ||
-          currentLocation == AppConstants.routeOpportunityDetail ||
-          currentLocation == AppConstants.routeFarmerDeals ||
-          currentLocation == AppConstants.routeRateBuyer;
+      final isFarmerRoute =
+          currentLocation == AppConstants.routeFarmerDashboard ||
+              currentLocation == AppConstants.routeFarmerProfile ||
+              currentLocation == AppConstants.routeFarmerVerification ||
+              currentLocation == AppConstants.routeMyCrops ||
+              currentLocation == AppConstants.routeAddCrop ||
+              currentLocation == AppConstants.routeEditCrop ||
+              currentLocation == AppConstants.routeCropDetail ||
+              currentLocation == AppConstants.routeFarmerRecommendations ||
+              currentLocation == AppConstants.routeFarmerOpportunities ||
+              currentLocation == AppConstants.routeFarmerDeals ||
+              currentLocation == AppConstants.routeRateBuyer;
 
-      final isBuyerRoute = currentLocation == AppConstants.routeBuyerDashboard ||
-          currentLocation == AppConstants.routeBuyerProfile ||
-          currentLocation == AppConstants.routeBuyerVerification ||
-          currentLocation == AppConstants.routeBuyerRequirements ||
-          currentLocation == AppConstants.routeCreateRequirement ||
-          currentLocation == AppConstants.routeEditRequirement ||
-          currentLocation == AppConstants.routeRequirementDetail ||
-          currentLocation == AppConstants.routeBuyerOpportunities ||
-          currentLocation == AppConstants.routeBuyerDeals ||
-          currentLocation == AppConstants.routeRateFarmer;
+      final isBuyerRoute =
+          currentLocation == AppConstants.routeBuyerDashboard ||
+              currentLocation == AppConstants.routeBuyerProfile ||
+              currentLocation == AppConstants.routeBuyerVerification ||
+              currentLocation == AppConstants.routeBuyerRequirements ||
+              currentLocation == AppConstants.routeCreateRequirement ||
+              currentLocation == AppConstants.routeEditRequirement ||
+              currentLocation == AppConstants.routeRequirementDetail ||
+              currentLocation == AppConstants.routeBuyerOpportunities ||
+              currentLocation == AppConstants.routeBuyerDeals ||
+              currentLocation == AppConstants.routeRateFarmer;
 
       // 1. Unauthenticated users cannot access protected routes
       if (!isAuthenticated) {
@@ -288,7 +289,8 @@ GoRouter createRouter(AuthProvider authProvider) {
       GoRoute(
         path: AppConstants.routeMapDiscovery,
         builder: (BuildContext context, GoRouterState state) {
-          final role = (state.extra as String?) ?? authProvider.userRole ?? 'FARMER';
+          final role =
+              (state.extra as String?) ?? authProvider.userRole ?? 'FARMER';
           return MapDiscoveryScreen(userRole: role);
         },
       ),

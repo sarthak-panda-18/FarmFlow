@@ -59,7 +59,8 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
       if (res.data != null && res.data['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Thank you! Your feedback has been submitted successfully.'),
+            content: Text(
+                'Thank you! Your feedback has been submitted successfully.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -96,7 +97,8 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
     );
   }
 
-  Widget _buildCategorySlider(String label, double value, ValueChanged<double> onChanged) {
+  Widget _buildCategorySlider(
+      String label, double value, ValueChanged<double> onChanged) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -133,12 +135,14 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: AppColors.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius),
                   border: Border.all(color: AppColors.error),
                 ),
                 child: Text(
                   _errorMessage!,
-                  style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: AppColors.error, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 16),
@@ -147,20 +151,26 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
             // Overall Rating Card
             Card(
               elevation: AppConstants.cardElevation,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius)),
               child: Padding(
                 padding: const EdgeInsets.all(AppConstants.paddingMedium),
                 child: Column(
                   children: [
                     const Text(
                       'Overall Farmer Rating',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 8),
-                    _buildStarSelector(_overallRating, (val) => setState(() => _overallRating = val)),
+                    _buildStarSelector(_overallRating,
+                        (val) => setState(() => _overallRating = val)),
                     Text(
                       '${_overallRating.toStringAsFixed(0)} / 5 Stars',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFD97706)),
                     ),
                   ],
                 ),
@@ -171,7 +181,9 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
             // Detailed Feedback Categories Card
             Card(
               elevation: AppConstants.cardElevation,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius)),
               child: Padding(
                 padding: const EdgeInsets.all(AppConstants.paddingMedium),
                 child: Column(
@@ -179,15 +191,26 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
                   children: [
                     const Text(
                       'Detailed Feedback Categories',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                     const Divider(height: 20),
-                    _buildCategorySlider('Product Quality', _productQuality, (v) => setState(() => _productQuality = v)),
-                    _buildCategorySlider('Freshness', _freshness, (v) => setState(() => _freshness = v)),
-                    _buildCategorySlider('Spoilage', _spoilage, (v) => setState(() => _spoilage = v)),
-                    _buildCategorySlider('Quantity Accuracy', _quantityAccuracy, (v) => setState(() => _quantityAccuracy = v)),
-                    _buildCategorySlider('Farmer Interaction', _farmerInteraction, (v) => setState(() => _farmerInteraction = v)),
-                    _buildCategorySlider('Transaction Experience', _transactionExperience, (v) => setState(() => _transactionExperience = v)),
+                    _buildCategorySlider('Product Quality', _productQuality,
+                        (v) => setState(() => _productQuality = v)),
+                    _buildCategorySlider('Freshness', _freshness,
+                        (v) => setState(() => _freshness = v)),
+                    _buildCategorySlider('Spoilage', _spoilage,
+                        (v) => setState(() => _spoilage = v)),
+                    _buildCategorySlider('Quantity Accuracy', _quantityAccuracy,
+                        (v) => setState(() => _quantityAccuracy = v)),
+                    _buildCategorySlider(
+                        'Farmer Interaction',
+                        _farmerInteraction,
+                        (v) => setState(() => _farmerInteraction = v)),
+                    _buildCategorySlider(
+                        'Transaction Experience',
+                        _transactionExperience,
+                        (v) => setState(() => _transactionExperience = v)),
                   ],
                 ),
               ),
@@ -197,7 +220,9 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
             // Comments
             Card(
               elevation: AppConstants.cardElevation,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius)),
               child: Padding(
                 padding: const EdgeInsets.all(AppConstants.paddingMedium),
                 child: Column(
@@ -205,7 +230,8 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
                   children: [
                     const Text(
                       'Additional Comments (Optional)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -213,7 +239,8 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
                       maxLines: 3,
                       maxLength: 300,
                       decoration: const InputDecoration(
-                        hintText: 'e.g. Good quality product and smooth interaction...',
+                        hintText:
+                            'e.g. Good quality product and smooth interaction...',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -230,18 +257,22 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.secondary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadius)),
                 ),
                 onPressed: _isSubmitting ? null : _handleSubmit,
                 child: _isSubmitting
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
                       )
                     : const Text(
                         'Submit Feedback',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ),

@@ -16,7 +16,7 @@ class OtpVerificationScreen extends StatefulWidget {
 class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _otpController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _isSendingOtp = false;
   String? _errorMessage;
@@ -148,7 +148,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   child: CircleAvatar(
                     radius: 36,
                     backgroundColor: Color(0xFFDCFCE7),
-                    child: Icon(Icons.phonelink_ring, size: 40, color: AppColors.primary),
+                    child: Icon(Icons.phonelink_ring,
+                        size: 40, color: AppColors.primary),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -183,7 +184,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadius),
                       border: Border.all(color: AppColors.error),
                     ),
                     child: Row(
@@ -193,7 +195,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                                color: AppColors.error,
+                                fontWeight: FontWeight.w600),
                           ),
                         ),
                       ],
@@ -206,17 +210,21 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.success.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadius),
                       border: Border.all(color: AppColors.success),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle_outline, color: AppColors.success),
+                        const Icon(Icons.check_circle_outline,
+                            color: AppColors.success),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _successMessage!,
-                            style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w600),
                           ),
                         ),
                       ],
@@ -233,15 +241,19 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       side: const BorderSide(color: AppColors.warning),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.bug_report, size: 18, color: AppColors.warning),
+                          const Icon(Icons.bug_report,
+                              size: 18, color: AppColors.warning),
                           const SizedBox(width: 8),
                           Text(
                             'Development Mode Mock OTP: $_devOtp',
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF92400E)),
                           ),
                         ],
                       ),
@@ -254,7 +266,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   keyboardType: TextInputType.number,
                   maxLength: 6,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 24,
+                      letterSpacing: 8,
+                      fontWeight: FontWeight.bold),
                   decoration: const InputDecoration(
                     labelText: 'Enter 6-digit OTP',
                     hintText: '123456',
@@ -279,7 +294,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadius),
                     ),
                   ),
                   child: _isLoading
@@ -293,16 +309,20 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         )
                       : const Text(
                           'Verify OTP',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                 ),
                 const SizedBox(height: 16),
                 OutlinedButton(
-                  onPressed: (_secondsRemaining > 0 || _isSendingOtp) ? null : _triggerSendOtp,
+                  onPressed: (_secondsRemaining > 0 || _isSendingOtp)
+                      ? null
+                      : _triggerSendOtp,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadius),
                     ),
                   ),
                   child: _isSendingOtp

@@ -62,7 +62,9 @@ class CropModel {
       id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
       farmerId: json['farmerId']?.toString(),
       commodity: json['commodity']?.toString() ?? 'N/A',
-      cropName: json['cropName']?.toString() ?? json['commodity']?.toString() ?? 'N/A',
+      cropName: json['cropName']?.toString() ??
+          json['commodity']?.toString() ??
+          'N/A',
       variety: json['variety']?.toString(),
       grade: json['grade']?.toString(),
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,

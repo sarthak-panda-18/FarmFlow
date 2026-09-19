@@ -8,6 +8,7 @@ const MarketPrice = require('../models/MarketPrice');
 const { calculateHaversineDistance, buildGoogleMapsUrl } = require('../utils/geoUtils');
 const { getUserRatingStats } = require('../utils/ratingHelper');
 const { buildCommodityFilter } = require('../utils/commodityCategoryMapping');
+const { resolvePartyLocation, sanitizeAddress, formatAddressParts } = require('../utils/locationResolver');
 
 /**
  * @desc    Buyer expresses interest in a farmer's crop
@@ -695,23 +696,80 @@ const getOpportunityById = async (req, res, next) => {
       );
     }
 
-    // Build Maps URL for counterparty
-    const targetCoords = isFarmer ? buyerCoords : farmerCoords;
-    const targetName = isFarmer
-      ? (opportunity.buyerId?.businessName || opportunity.buyerId?.name || 'Buyer')
-      : (opportunity.farmerId?.name || 'Farmer');
+    // Build Maps URL for counterparty using resolvePartyLocation
+    const partyLocation = isFarmer
+      ? resolvePartyLocation({ user: opportunity.buyerId, requirement: opportunity.requirementId, partyLabel: opportunity.buyerId?.businessName || opportunity.buyerId?.name || 'Buyer' })
+      : resolvePartyLocation({ user: opportunity.farmerId, crop: opportunity.cropId, partyLabel: opportunity.farmerId?.name || 'Farmer' });
 
-    const googleMapsUrl = targetCoords
-      ? buildGoogleMapsUrl(targetCoords.lat, targetCoords.lng, targetName)
-      : (isFarmer
-          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(opportunity.buyerId?.address || `${opportunity.buyerId?.district || ''}, ${opportunity.buyerId?.state || ''}`)}`
-          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(opportunity.farmerId?.address || `${opportunity.cropId?.district || ''}, ${opportunity.cropId?.state || ''}`)}`);
+    const googleMapsUrl = partyLocation.mapsUrl || '';
 
     const isNormalizedPending = opportunity.status === 'PENDING' || opportunity.status === 'INTERESTED';
     const currentStatus = isNormalizedPending ? 'PENDING' : opportunity.status;
 
     // Find any linked deal for Phase 10 integration
-    const linkedDeal = await Deal.findOne({ opportunityId: opportunity._id }).select('_id status').lean();
+    let linkedDeal = await Deal.findOne({ opportunityId: opportunity._id }).select('_id status').lean();
+
+    if (!linkedDeal && (opportunity.status === 'ACCEPTED' || opportunity.status === 'COMPLETED')) {
+      const farmerResolved = resolvePartyLocation({
+        user: opportunity.farmerId,
+        crop: opportunity.cropId,
+        partyLabel: opportunity.farmerId?.name || 'Farmer Pickup',
+      });
+
+      const buyerResolved = resolvePartyLocation({
+        user: opportunity.buyerId,
+        requirement: opportunity.requirementId,
+        partyLabel: opportunity.buyerId?.businessName || opportunity.buyerId?.name || 'Buyer Delivery',
+      });
+
+      let calculatedDist = distanceKm;
+      if (!calculatedDist && farmerResolved.latitude && farmerResolved.longitude && buyerResolved.latitude && buyerResolved.longitude) {
+        calculatedDist = calculateHaversineDistance(
+          farmerResolved.latitude,
+          farmerResolved.longitude,
+          buyerResolved.latitude,
+          buyerResolved.longitude
+        );
+      }
+
+      const createdDeal = await Deal.create({
+        farmerId: opportunity.farmerId._id || opportunity.farmerId,
+        buyerId: opportunity.buyerId._id || opportunity.buyerId,
+        opportunityId: opportunity._id,
+        farmerCropId: opportunity.cropId ? opportunity.cropId._id || opportunity.cropId : null,
+        cropId: opportunity.cropId ? opportunity.cropId._id || opportunity.cropId : null,
+        buyerRequirementId: opportunity.requirementId ? opportunity.requirementId._id || opportunity.requirementId : null,
+        requirementId: opportunity.requirementId ? opportunity.requirementId._id || opportunity.requirementId : null,
+        commodity: opportunity.commodity,
+        crop: opportunity.commodity,
+        quantity: opportunity.quantity,
+        quantityUnit: 'quintal',
+        agreedPrice: opportunity.offeredPrice,
+        agreedPriceUnit: 'quintal',
+        status: 'AGREEMENT_PENDING',
+        agreementStatus: 'AGREEMENT_PENDING',
+        farmerAccepted: false,
+        farmerAgreementAccepted: false,
+        buyerAccepted: false,
+        buyerAgreementAccepted: false,
+        agreementVersion: 1,
+        termsAcceptedVersion: 1,
+        pickupLocation: {
+          address: farmerResolved.address,
+          latitude: farmerResolved.latitude,
+          longitude: farmerResolved.longitude,
+        },
+        deliveryLocation: {
+          address: buyerResolved.address,
+          latitude: buyerResolved.latitude,
+          longitude: buyerResolved.longitude,
+        },
+        distanceKm: calculatedDist,
+        paymentStatus: 'PAYMENT_PENDING',
+        paymentMethod: 'External / Direct Payment',
+      });
+      linkedDeal = { _id: createdDeal._id, status: createdDeal.status };
+    }
 
     res.status(200).json({
       success: true,
@@ -833,8 +891,24 @@ const acceptOpportunity = async (req, res, next) => {
       });
     }
 
-    // Concurrency check
+    // Concurrency / Idempotency check
     if (opportunity.status !== 'PENDING' && opportunity.status !== 'INTERESTED') {
+      if (opportunity.status === 'ACCEPTED' || opportunity.status === 'COMPLETED') {
+        const existingDeal = await Deal.findOne({ opportunityId: opportunity._id });
+        if (existingDeal) {
+          return res.status(200).json({
+            success: true,
+            message: 'Opportunity already accepted. Both parties are connected.',
+            data: {
+              opportunity,
+              dealId: existingDeal._id.toString(),
+              deal: existingDeal,
+            },
+            dealId: existingDeal._id.toString(),
+            deal: existingDeal,
+          });
+        }
+      }
       return res.status(400).json({
         success: false,
         message: 'Opportunity is no longer pending.',
@@ -851,36 +925,42 @@ const acceptOpportunity = async (req, res, next) => {
     // Auto-create or link Deal record
     let deal = await Deal.findOne({ opportunityId: opportunity._id });
     if (!deal) {
-      const farmer = await User.findById(opportunity.farmerId).select('address location coordinates district state').lean();
-      const buyer = await User.findById(opportunity.buyerId).select('address location coordinates district state').lean();
+      const farmer = await User.findById(opportunity.farmerId).select('name phone address city location coordinates district state').lean();
+      const buyer = await User.findById(opportunity.buyerId).select('name phone address city location coordinates district state businessName').lean();
 
-      let pickupLat = null;
-      let pickupLng = null;
-      if (farmer && farmer.location && Array.isArray(farmer.location.coordinates) && farmer.location.coordinates.length === 2) {
-        pickupLng = farmer.location.coordinates[0];
-        pickupLat = farmer.location.coordinates[1];
-      } else if (farmer && farmer.coordinates && farmer.coordinates.latitude != null) {
-        pickupLat = farmer.coordinates.latitude;
-        pickupLng = farmer.coordinates.longitude;
+      let cropDetails = null;
+      const cropTargetId = opportunity.cropId || opportunity.farmerCropId;
+      if (cropTargetId) {
+        cropDetails = await Crop.findById(cropTargetId).lean();
       }
 
-      let deliveryLat = null;
-      let deliveryLng = null;
-      if (buyer && buyer.location && Array.isArray(buyer.location.coordinates) && buyer.location.coordinates.length === 2) {
-        deliveryLng = buyer.location.coordinates[0];
-        deliveryLat = buyer.location.coordinates[1];
-      } else if (buyer && buyer.coordinates && buyer.coordinates.latitude != null) {
-        deliveryLat = buyer.coordinates.latitude;
-        deliveryLng = buyer.coordinates.longitude;
+      let reqDetails = null;
+      const reqTargetId = opportunity.requirementId || opportunity.buyerRequirementId;
+      if (reqTargetId) {
+        reqDetails = await BuyerRequirement.findById(reqTargetId).lean();
       }
 
-      let distance = null;
-      if (pickupLat != null && pickupLng != null && deliveryLat != null && deliveryLng != null) {
-        distance = calculateHaversineDistance(pickupLat, pickupLng, deliveryLat, deliveryLng);
-      }
+      const farmerResolved = resolvePartyLocation({
+        user: farmer,
+        crop: cropDetails,
+        partyLabel: farmer?.name || 'Farmer Pickup',
+      });
 
-      const farmerAddress = farmer?.address || (typeof farmer?.location === 'string' ? farmer.location : '') || `${farmer?.district || ''}, ${farmer?.state || ''}`;
-      const buyerAddress = buyer?.address || (typeof buyer?.location === 'string' ? buyer.location : '') || `${buyer?.district || ''}, ${buyer?.state || ''}`;
+      const buyerResolved = resolvePartyLocation({
+        user: buyer,
+        requirement: reqDetails,
+        partyLabel: buyer?.businessName || buyer?.name || 'Buyer Delivery',
+      });
+
+      let calculatedDist = null;
+      if (farmerResolved.latitude && farmerResolved.longitude && buyerResolved.latitude && buyerResolved.longitude) {
+        calculatedDist = calculateHaversineDistance(
+          farmerResolved.latitude,
+          farmerResolved.longitude,
+          buyerResolved.latitude,
+          buyerResolved.longitude
+        );
+      }
 
       deal = new Deal({
         farmerId: opportunity.farmerId,
@@ -899,20 +979,22 @@ const acceptOpportunity = async (req, res, next) => {
         status: 'AGREEMENT_PENDING',
         agreementStatus: 'AGREEMENT_PENDING',
         farmerAccepted: false,
+        farmerAgreementAccepted: false,
         buyerAccepted: false,
+        buyerAgreementAccepted: false,
         agreementVersion: 1,
         termsAcceptedVersion: 1,
         pickupLocation: {
-          address: farmerAddress,
-          latitude: pickupLat,
-          longitude: pickupLng,
+          address: farmerResolved.address,
+          latitude: farmerResolved.latitude,
+          longitude: farmerResolved.longitude,
         },
         deliveryLocation: {
-          address: buyerAddress,
-          latitude: deliveryLat,
-          longitude: deliveryLng,
+          address: buyerResolved.address,
+          latitude: buyerResolved.latitude,
+          longitude: buyerResolved.longitude,
         },
-        distanceKm: distance,
+        distanceKm: calculatedDist,
         paymentStatus: 'PAYMENT_PENDING',
         paymentMethod: 'External / Direct Payment',
       });
@@ -946,8 +1028,11 @@ const acceptOpportunity = async (req, res, next) => {
       data: {
         opportunity,
         dealId: deal ? deal._id.toString() : null,
+        deal,
         agreementStatus: 'AGREEMENT_PENDING',
       },
+      dealId: deal ? deal._id.toString() : null,
+      deal,
     });
   } catch (error) {
     next(error);

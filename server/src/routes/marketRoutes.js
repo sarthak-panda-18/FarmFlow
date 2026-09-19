@@ -9,6 +9,7 @@ const {
   triggerMarketPriceAlerts,
   searchMarkets,
   getMarketStats,
+  getMarketPrediction,
 } = require('../controllers/marketController');
 
 // Public market price endpoints
@@ -16,6 +17,7 @@ router.get('/reference-price', getReferencePrice);
 router.get('/latest', getReferencePrice);
 router.get('/prices', getMarketPrices);
 router.get('/trends', getMarketTrends);
+router.get('/prediction', getMarketPrediction);
 router.post('/trigger-alerts', triggerMarketPriceAlerts);
 router.get('/history', getMarketPriceHistory);
 router.get('/category/:category', getCategoryPrices);

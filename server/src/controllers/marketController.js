@@ -3,6 +3,7 @@ const Crop = require('../models/Crop');
 const BuyerRequirement = require('../models/BuyerRequirement');
 const Notification = require('../models/Notification');
 const { buildCommodityFilter } = require('../utils/commodityCategoryMapping');
+const { getPricePrediction, checkMLHealth } = require('../services/mlService');
 
 /**
  * @desc    Get single reference market price for a crop/commodity
@@ -711,6 +712,126 @@ const triggerMarketPriceAlerts = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Get ML Price Prediction combined with actual market reference rate & trend
+ * @route   GET /api/markets/prediction
+ * @access  Public
+ */
+const getMarketPrediction = async (req, res, next) => {
+  try {
+    const { commodity, state, district, market, variety, grade, date } = req.query;
+
+    if (!commodity || !commodity.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Commodity parameter is required for price prediction',
+      });
+    }
+
+    const commName = commodity.trim();
+
+    // 1. Fetch current actual reference market price from database
+    const filter = {};
+    const commFilter = buildCommodityFilter(commName);
+    if (commFilter) Object.assign(filter, commFilter);
+
+    if (state && state.trim()) filter.state = { $regex: new RegExp(`^${state.trim()}$`, 'i') };
+    if (district && district.trim()) filter.district = { $regex: new RegExp(`^${district.trim()}$`, 'i') };
+    if (market && market.trim()) filter.market = { $regex: new RegExp(`^${market.trim()}$`, 'i') };
+
+    let actualRecord = await MarketPrice.findOne(filter).sort({ date: -1 }).lean();
+
+    // Fallback if specific market/district not found
+    if (!actualRecord && filter.market) {
+      delete filter.market;
+      actualRecord = await MarketPrice.findOne(filter).sort({ date: -1 }).lean();
+    }
+    if (!actualRecord && filter.district) {
+      delete filter.district;
+      actualRecord = await MarketPrice.findOne(filter).sort({ date: -1 }).lean();
+    }
+    if (!actualRecord && filter.state) {
+      delete filter.state;
+      actualRecord = await MarketPrice.findOne(filter).sort({ date: -1 }).lean();
+    }
+
+    const currentActualPrice = actualRecord ? actualRecord.modalPrice : null;
+
+    // 2. Call Python FastAPI ML prediction service
+    const predictionResult = await getPricePrediction({
+      commodity: commName,
+      state: state || actualRecord?.state,
+      district: district || actualRecord?.district,
+      market: market || actualRecord?.market,
+      variety: variety || actualRecord?.variety,
+      grade: grade || actualRecord?.grade,
+      date,
+    });
+
+    if (!predictionResult.available || !predictionResult.success || !predictionResult.prediction) {
+      // Graceful fallback response when ML service is offline
+      return res.status(200).json({
+        success: true,
+        available: false,
+        message: predictionResult.message || 'Market prediction is currently unavailable.',
+        data: {
+          commodity: commName,
+          actualPrice: currentActualPrice,
+          actualPriceUnit: 'Quintal',
+          predictedPrice: null,
+          predictedChangePercent: null,
+          trend: 'UNAVAILABLE',
+          isMlAvailable: false,
+        },
+      });
+    }
+
+    const predData = predictionResult.prediction;
+    const predictedPrice = predData.predictedPrice;
+
+    // 3. Compute predicted change percentage and trend relative to actual current market price
+    let predictedChangePercent = null;
+    let trend = 'STABLE';
+
+    if (currentActualPrice !== null && currentActualPrice > 0) {
+      predictedChangePercent =
+        Math.round((((predictedPrice - currentActualPrice) / currentActualPrice) * 100) * 100) / 100;
+      if (predictedChangePercent >= 1.0) {
+        trend = 'INCREASING';
+      } else if (predictedChangePercent <= -1.0) {
+        trend = 'DECREASING';
+      } else {
+        trend = 'STABLE';
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      available: true,
+      data: {
+        commodity: commName,
+        state: predData.state,
+        district: predData.district,
+        market: predData.market,
+        variety: predData.variety,
+        grade: predData.grade,
+        targetDate: predData.targetDate,
+        actualPrice: currentActualPrice,
+        actualPriceFormatted: currentActualPrice ? `₹${currentActualPrice.toLocaleString()} / Quintal` : null,
+        predictedPrice,
+        predictedPriceFormatted: `₹${predictedPrice.toLocaleString()} / Quintal`,
+        unit: 'Quintal',
+        predictedChangePercent,
+        trend,
+        isMlAvailable: true,
+        modelVersion: predData.modelVersion,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getReferencePrice,
   getMarketPrices,
@@ -720,5 +841,6 @@ module.exports = {
   triggerMarketPriceAlerts,
   searchMarkets,
   getMarketStats,
+  getMarketPrediction,
 };
 

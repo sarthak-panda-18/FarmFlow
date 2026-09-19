@@ -5,6 +5,9 @@ import '../../constants/app_constants.dart';
 import '../../constants/app_strings.dart';
 import '../../models/crop_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/farm_badge.dart';
+import '../../widgets/farm_bottom_nav.dart';
+import '../../widgets/farm_empty_state.dart';
 
 class MyCropsScreen extends StatefulWidget {
   const MyCropsScreen({super.key});
@@ -59,7 +62,8 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
         final Map<String, dynamic> body = response.data;
         if (body['success'] == true) {
           final List<dynamic> data = body['data'] ?? [];
-          final cropsList = data.map((item) => CropModel.fromJson(item)).toList();
+          final cropsList =
+              data.map((item) => CropModel.fromJson(item)).toList();
           if (mounted) {
             setState(() {
               _crops = cropsList;
@@ -85,33 +89,18 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
     }
   }
 
-  Color _getStatusBgColor(String status) {
+  FarmBadgeType _getBadgeType(String status) {
     switch (status.toUpperCase()) {
       case 'AVAILABLE':
-        return const Color(0xFFDCFCE7);
+        return FarmBadgeType.success;
       case 'RESERVED':
-        return const Color(0xFFFEF3C7);
+        return FarmBadgeType.warning;
       case 'SOLD':
-        return const Color(0xFFDBEAFE);
+        return FarmBadgeType.info;
       case 'CANCELLED':
-        return const Color(0xFFFEE2E2);
+        return FarmBadgeType.error;
       default:
-        return const Color(0xFFF3F4F6);
-    }
-  }
-
-  Color _getStatusTextColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'AVAILABLE':
-        return const Color(0xFF166534);
-      case 'RESERVED':
-        return const Color(0xFF92400E);
-      case 'SOLD':
-        return const Color(0xFF1E40AF);
-      case 'CANCELLED':
-        return const Color(0xFF991B1B);
-      default:
-        return const Color(0xFF374151);
+        return FarmBadgeType.neutral;
     }
   }
 
@@ -123,7 +112,15 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
         title: const Text(AppStrings.myCrops),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, size: 20),
+            tooltip: 'Refresh Crops',
+            onPressed: _loadCrops,
+          ),
+        ],
       ),
+      bottomNavigationBar: const FarmBottomNav(currentIndex: 1, role: 'FARMER'),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final result = await context.push<bool>(AppConstants.routeAddCrop);
@@ -132,10 +129,13 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
           }
         },
         backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Add Crop'),
+        label: const Text('Add Crop',
+            style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: RefreshIndicator(
+        color: AppColors.primary,
         onRefresh: _loadCrops,
         child: _buildBody(),
       ),
@@ -145,7 +145,7 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(),
+        child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
 
@@ -156,35 +156,26 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: AppColors.error,
-              ),
-              const SizedBox(height: 16),
+              const Icon(Icons.error_outline, size: 52, color: AppColors.error),
+              const SizedBox(height: 14),
               Text(
-                'Unable to load your crops.',
+                'Unable to load crops',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 _errorMessage!,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                ),
                 onPressed: _loadCrops,
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Retry'),
               ),
             ],
@@ -194,58 +185,19 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
     }
 
     if (_crops.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.paddingLarge),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.grass_outlined,
-                size: 64,
-                color: AppColors.textMuted,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No crops added yet.',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'List your crop produce to connect with markets and manage inventory.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.borderRadius),
-                  ),
-                ),
-                onPressed: () async {
-                  final result =
-                      await context.push<bool>(AppConstants.routeAddCrop);
-                  if (result == true || mounted) {
-                    _loadCrops();
-                  }
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('+ Add Crop'),
-              ),
-            ],
-          ),
-        ),
+      return FarmEmptyState(
+        icon: Icons.grass_outlined,
+        title: 'No crops added yet',
+        message:
+            'List your harvested and available crops to connect with buyers and mandis.',
+        actionLabel: 'Add Crop Listing',
+        actionIcon: Icons.add,
+        onAction: () async {
+          final result = await context.push<bool>(AppConstants.routeAddCrop);
+          if (result == true || mounted) {
+            _loadCrops();
+          }
+        },
       );
     }
 
@@ -256,9 +208,8 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
         final crop = _crops[index];
         final harvestStr = _formatDate(crop.harvestDate);
         final locationParts = [crop.market, crop.district, crop.state];
-        final locationStr = locationParts
-            .where((e) => e != null && e.isNotEmpty)
-            .join(', ');
+        final locationStr =
+            locationParts.where((e) => e != null && e.isNotEmpty).join(', ');
 
         final subtitleParts = <String>[];
         if (crop.variety != null && crop.variety!.isNotEmpty) {
@@ -267,154 +218,165 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
         if (crop.grade != null && crop.grade!.isNotEmpty) {
           subtitleParts.add(crop.grade!);
         }
-        final varietyGradeStr = subtitleParts.isNotEmpty
-            ? subtitleParts.join(' • ')
-            : 'Standard';
+        final varietyGradeStr =
+            subtitleParts.isNotEmpty ? subtitleParts.join(' • ') : 'Standard';
 
-        return Card(
+        return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          elevation: AppConstants.cardElevation,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          child: InkWell(
-            onTap: () async {
-              final result = await context.push<bool>(
-                AppConstants.routeCropDetail,
-                extra: crop,
-              );
-              if (result == true && mounted) {
-                _loadCrops();
-              }
-            },
-            borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-            child: Padding(
-              padding: const EdgeInsets.all(AppConstants.paddingMedium),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top Row: Commodity Name + Status Badge
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        crop.commodity,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusBgColor(crop.status),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          crop.status.toUpperCase(),
-                          style: TextStyle(
-                            color: _getStatusTextColor(crop.status),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Variety • Grade
-                  const SizedBox(height: 2),
-                  Text(
-                    varietyGradeStr,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Quantity & Price Row
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.inventory_2_outlined,
-                        size: 16,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${crop.quantity} ${crop.quantityUnit}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                      ),
-                      const Spacer(),
-                      if (crop.expectedPrice != null) ...[
-                        Text(
-                          'Expected: ',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textMuted,
-                              ),
-                        ),
-                        Text(
-                          '₹${crop.expectedPrice!.toStringAsFixed(0)}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.secondary,
-                              ),
-                        ),
-                      ],
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Harvest Date & Location
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        size: 14,
-                        color: AppColors.textMuted,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Harvest: $harvestStr',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                      ),
-                    ],
-                  ),
-                  if (locationStr.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: () async {
+                final result = await context.push<bool>(
+                  AppConstants.routeCropDetail,
+                  extra: crop,
+                );
+                if (result == true && mounted) {
+                  _loadCrops();
+                }
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Row: Commodity & Status Badge
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(
-                          Icons.location_on_outlined,
-                          size: 14,
-                          color: AppColors.textMuted,
+                        Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE2EFE0),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.grass,
+                                    color: AppColors.primary, size: 20),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  crop.cropName.isNotEmpty
+                                      ? crop.cropName
+                                      : crop.commodity,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  '${crop.commodity} • $varietyGradeStr',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            locationStr,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        FarmBadge(
+                          label: crop.status.toUpperCase(),
+                          type: _getBadgeType(crop.status),
                         ),
                       ],
                     ),
+
+                    const Divider(height: 20, color: AppColors.border),
+
+                    // Metrics Row (Quantity & Expected Price)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.inventory_2_outlined,
+                                size: 15, color: AppColors.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${crop.quantity} ${crop.quantityUnit}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (crop.expectedPrice != null &&
+                            crop.expectedPrice! > 0)
+                          Row(
+                            children: [
+                              const Text('Expected: ',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textMuted)),
+                              Text(
+                                '₹${crop.expectedPrice!.toStringAsFixed(0)} / Q',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Harvest Date & Location Row
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined,
+                            size: 13, color: AppColors.textMuted),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Harvest: $harvestStr',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.textSecondary),
+                        ),
+                        if (locationStr.isNotEmpty) ...[
+                          const SizedBox(width: 12),
+                          const Icon(Icons.location_on_outlined,
+                              size: 13, color: AppColors.textMuted),
+                          const SizedBox(width: 2),
+                          Expanded(
+                            child: Text(
+                              locationStr,
+                              style: const TextStyle(
+                                  fontSize: 11, color: AppColors.textSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
-                ],
+                ),
               ),
             ),
           ),

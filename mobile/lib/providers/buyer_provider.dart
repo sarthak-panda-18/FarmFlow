@@ -19,7 +19,8 @@ class BuyerProvider extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  List<BuyerRequirementModel> get requirements => List.unmodifiable(_requirements);
+  List<BuyerRequirementModel> get requirements =>
+      List.unmodifiable(_requirements);
   int get currentPage => _currentPage;
   int get totalPages => _totalPages;
   int get totalRequirements => _totalRequirements;
@@ -57,7 +58,8 @@ class BuyerProvider extends ChangeNotifier {
       final data = response.data;
       if (data != null && data['success'] == true) {
         final List<dynamic> list = data['data'] ?? [];
-        final fetched = list.map((item) => BuyerRequirementModel.fromJson(item)).toList();
+        final fetched =
+            list.map((item) => BuyerRequirementModel.fromJson(item)).toList();
 
         if (page == 1 || refresh) {
           _requirements = fetched;
@@ -77,7 +79,8 @@ class BuyerProvider extends ChangeNotifier {
     }
   }
 
-  Future<BuyerRequirementModel?> createRequirement(Map<String, dynamic> requirementData) async {
+  Future<BuyerRequirementModel?> createRequirement(
+      Map<String, dynamic> requirementData) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -104,7 +107,8 @@ class BuyerProvider extends ChangeNotifier {
     return null;
   }
 
-  Future<BuyerRequirementModel?> updateRequirement(String id, Map<String, dynamic> requirementData) async {
+  Future<BuyerRequirementModel?> updateRequirement(
+      String id, Map<String, dynamic> requirementData) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -201,7 +205,8 @@ class BuyerProvider extends ChangeNotifier {
 
       if (data != null && data['success'] == true) {
         _requirements.removeWhere((r) => r.id == id);
-        _totalRequirements = _totalRequirements > 0 ? _totalRequirements - 1 : 0;
+        _totalRequirements =
+            _totalRequirements > 0 ? _totalRequirements - 1 : 0;
         _isLoading = false;
         notifyListeners();
         return true;

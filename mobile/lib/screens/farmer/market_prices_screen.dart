@@ -3,6 +3,7 @@ import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../models/market_price.dart';
 import '../../services/api_service.dart';
+import '../../widgets/farm_bottom_nav.dart';
 
 class MarketPricesScreen extends StatefulWidget {
   const MarketPricesScreen({super.key});
@@ -111,7 +112,8 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
       if (data != null && data['success'] == true) {
         final List list = data['data'] ?? [];
         setState(() {
-          _prices = list.map((item) => MarketPriceModel.fromJson(item)).toList();
+          _prices =
+              list.map((item) => MarketPriceModel.fromJson(item)).toList();
           _currentPage = data['page'] ?? 1;
           _totalPages = data['pages'] ?? 1;
           _totalRecords = data['total'] ?? 0;
@@ -188,20 +190,26 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.error_outline, color: AppColors.error, size: 40),
+                          const Icon(Icons.error_outline,
+                              color: AppColors.error, size: 40),
                           const SizedBox(height: 8),
-                          Text('Unable to load market price history: ${snapshot.error}'),
+                          Text(
+                              'Unable to load market price history: ${snapshot.error}'),
                         ],
                       ),
                     );
                   }
 
                   final data = snapshot.data?.data;
-                  final List history = data != null && data['success'] == true ? (data['data'] ?? []) : [];
-                  final dynamic prevRecord = history.length >= 2 ? history[history.length - 2] : null;
-                  final double? prevPrice = (prevRecord != null && prevRecord['modalPrice'] != null)
-                      ? (prevRecord['modalPrice'] as num).toDouble()
-                      : null;
+                  final List history = data != null && data['success'] == true
+                      ? (data['data'] ?? [])
+                      : [];
+                  final dynamic prevRecord =
+                      history.length >= 2 ? history[history.length - 2] : null;
+                  final double? prevPrice =
+                      (prevRecord != null && prevRecord['modalPrice'] != null)
+                          ? (prevRecord['modalPrice'] as num).toDouble()
+                          : null;
                   final double? pctChange = (prevPrice != null && prevPrice > 0)
                       ? (((item.modalPrice - prevPrice) / prevPrice) * 100.0)
                       : null;
@@ -229,7 +237,10 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                               children: [
                                 Text(
                                   item.commodity,
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.primary,
                                       ),
@@ -237,7 +248,9 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   '${item.market} Market (${item.district}, ${item.state})',
-                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 13),
                                 ),
                               ],
                             ),
@@ -245,7 +258,8 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                           Chip(
                             label: Text(
                               '${item.variety} • ${item.grade}',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.bold),
                             ),
                             backgroundColor: const Color(0xFFDCFCE7),
                           ),
@@ -256,31 +270,44 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: pctChange >= 0 ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                            color: pctChange >= 0
+                                ? const Color(0xFFECFDF5)
+                                : const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: pctChange >= 0 ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA),
+                              color: pctChange >= 0
+                                  ? const Color(0xFFA7F3D0)
+                                  : const Color(0xFFFECACA),
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'Current: ₹${item.modalPrice.toStringAsFixed(0)} / Quintal',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13),
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: pctChange >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                                      color: pctChange >= 0
+                                          ? Colors.green.shade700
+                                          : Colors.red.shade700,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
                                       '${pctChange >= 0 ? '↑ +' : '↓ '}${pctChange.toStringAsFixed(1)}%',
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12),
                                     ),
                                   ),
                                 ],
@@ -288,13 +315,19 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 'Previous: ₹${prevPrice.toStringAsFixed(0)} / Quintal',
-                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary),
                               ),
                               if (pctChange.abs() >= 5.0) ...[
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
-                                    Icon(Icons.notifications_active, size: 14, color: pctChange >= 0 ? Colors.green.shade800 : Colors.red.shade800),
+                                    Icon(Icons.notifications_active,
+                                        size: 14,
+                                        color: pctChange >= 0
+                                            ? Colors.green.shade800
+                                            : Colors.red.shade800),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
@@ -302,7 +335,9 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
-                                          color: pctChange >= 0 ? Colors.green.shade900 : Colors.red.shade900,
+                                          color: pctChange >= 0
+                                              ? Colors.green.shade900
+                                              : Colors.red.shade900,
                                         ),
                                       ),
                                     ),
@@ -345,29 +380,42 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      // Phase ML: Dedicated Machine Learning Price Prediction Section
+                      _MlPredictionSection(
+                        item: item,
+                        apiService: _apiService,
+                      ),
+                      const SizedBox(height: 16),
                       Text(
                         'Historical Price Log (${history.length} records)',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
                       if (history.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 24),
                           child: Center(
-                            child: Text('Market price unavailable for this history range.', style: TextStyle(color: AppColors.textMuted)),
+                            child: Text(
+                                'Market price unavailable for this history range.',
+                                style: TextStyle(color: AppColors.textMuted)),
                           ),
                         )
                       else
                         ...history.reversed.map((h) {
                           final date = h['date'] ?? 'N/A';
-                          final modal = (h['modalPrice'] as num?)?.toDouble() ?? 0;
+                          final modal =
+                              (h['modalPrice'] as num?)?.toDouble() ?? 0;
                           final min = (h['minPrice'] as num?)?.toDouble() ?? 0;
                           final max = (h['maxPrice'] as num?)?.toDouble() ?? 0;
                           final marketName = h['market'] ?? item.market;
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
                               color: Colors.grey[50],
                               borderRadius: BorderRadius.circular(8),
@@ -379,15 +427,29 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(date, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                    Text(marketName, style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                                    Text(date,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13)),
+                                    Text(marketName,
+                                        style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 11)),
                                   ],
                                 ),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text('₹${modal.toStringAsFixed(0)}/Q', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 14)),
-                                    Text('₹${min.toStringAsFixed(0)} - ₹${max.toStringAsFixed(0)}', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                                    Text('₹${modal.toStringAsFixed(0)}/Q',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                            fontSize: 14)),
+                                    Text(
+                                        '₹${min.toStringAsFixed(0)} - ₹${max.toStringAsFixed(0)}',
+                                        style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 11)),
                                   ],
                                 ),
                               ],
@@ -420,6 +482,7 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: const FarmBottomNav(currentIndex: 2, role: 'FARMER'),
       body: Column(
         children: [
           // Filter & Search Header Card
@@ -449,7 +512,8 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                             )
                           : null,
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 12),
                     ),
                     onSubmitted: (_) => _applyFilter(),
                   ),
@@ -466,11 +530,16 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                           child: ChoiceChip(
                             label: Text(cat['name']!),
                             selected: isSelected,
-                            selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                            selectedColor:
+                                AppColors.primary.withValues(alpha: 0.15),
                             labelStyle: TextStyle(
                               fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
                             ),
                             onSelected: (selected) {
                               if (selected) {
@@ -498,7 +567,8 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                           decoration: const InputDecoration(
                             labelText: 'Commodity',
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
                           ),
                           items: _commodities.map((c) {
                             return DropdownMenuItem<String>(
@@ -522,7 +592,8 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                           decoration: const InputDecoration(
                             labelText: 'State',
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
                           ),
                           items: _states.map((s) {
                             return DropdownMenuItem<String>(
@@ -538,9 +609,13 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                           },
                         ),
                       ),
-                      if (_selectedCommodity != null || _selectedState != null || _searchController.text.isNotEmpty || _selectedCategory != 'all')
+                      if (_selectedCommodity != null ||
+                          _selectedState != null ||
+                          _searchController.text.isNotEmpty ||
+                          _selectedCategory != 'all')
                         IconButton(
-                          icon: const Icon(Icons.filter_alt_off, color: AppColors.error),
+                          icon: const Icon(Icons.filter_alt_off,
+                              color: AppColors.error),
                           tooltip: 'Clear Filters',
                           onPressed: _clearFilters,
                         ),
@@ -554,7 +629,8 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
           // Total Records Badge
           if (!_isLoading && _errorMessage == null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingMedium, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.paddingMedium, vertical: 4),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -589,7 +665,9 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: _currentPage > 1 ? () => _fetchMarketPrices(page: _currentPage - 1) : null,
+                    onPressed: _currentPage > 1
+                        ? () => _fetchMarketPrices(page: _currentPage - 1)
+                        : null,
                     icon: const Icon(Icons.arrow_back, size: 16),
                     label: const Text('Previous'),
                   ),
@@ -598,7 +676,9 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   OutlinedButton.icon(
-                    onPressed: _currentPage < _totalPages ? () => _fetchMarketPrices(page: _currentPage + 1) : null,
+                    onPressed: _currentPage < _totalPages
+                        ? () => _fetchMarketPrices(page: _currentPage + 1)
+                        : null,
                     icon: const Icon(Icons.arrow_forward, size: 16),
                     label: const Text('Next'),
                   ),
@@ -661,7 +741,8 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.search_off, size: 56, color: AppColors.textMuted),
+              const Icon(Icons.search_off,
+                  size: 56, color: AppColors.textMuted),
               const SizedBox(height: 12),
               Text(
                 'No market-price data found',
@@ -687,7 +768,8 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingSmall, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppConstants.paddingSmall, vertical: 4),
       itemCount: _prices.length,
       itemBuilder: (context, index) {
         final item = _prices[index];
@@ -711,15 +793,17 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                     children: [
                       Text(
                         item.commodity,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
                       ),
                       Chip(
                         label: Text(
                           '${item.variety} • ${item.grade}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                         backgroundColor: const Color(0xFFDCFCE7),
                         visualDensity: VisualDensity.compact,
@@ -730,14 +814,16 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                   // Location & Market
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
+                      const Icon(Icons.location_on_outlined,
+                          size: 16, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           '${item.market} Market (${item.district}, ${item.state})',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
                         ),
                       ),
                     ],
@@ -772,7 +858,9 @@ class _MarketPricesScreenState extends State<MarketPricesScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.show_chart, size: 14, color: AppColors.primary.withValues(alpha: 0.8)),
+                          Icon(Icons.show_chart,
+                              size: 14,
+                              color: AppColors.primary.withValues(alpha: 0.8)),
                           const SizedBox(width: 4),
                           Text(
                             'Tap to view historical trends',
@@ -842,6 +930,345 @@ class _PriceColumn extends StatelessWidget {
           style: TextStyle(fontSize: 10, color: AppColors.textMuted),
         ),
       ],
+    );
+  }
+}
+
+class _MlPredictionSection extends StatefulWidget {
+  final MarketPriceModel item;
+  final ApiService apiService;
+
+  const _MlPredictionSection({
+    required this.item,
+    required this.apiService,
+  });
+
+  @override
+  State<_MlPredictionSection> createState() => _MlPredictionSectionState();
+}
+
+class _MlPredictionSectionState extends State<_MlPredictionSection> {
+  bool _isLoading = true;
+  Map<String, dynamic>? _prediction;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPrediction();
+  }
+
+  Future<void> _fetchPrediction() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final res = await widget.apiService.getMarketPrediction(
+        commodity: widget.item.commodity,
+        state: widget.item.state != 'N/A' ? widget.item.state : null,
+        district: widget.item.district != 'N/A' ? widget.item.district : null,
+        market: widget.item.market != 'N/A' ? widget.item.market : null,
+        variety: widget.item.variety != 'N/A' ? widget.item.variety : null,
+        grade: widget.item.grade != 'N/A' ? widget.item.grade : null,
+      );
+
+      if (mounted) {
+        if (res.data != null &&
+            res.data['success'] == true &&
+            res.data['data'] != null) {
+          setState(() {
+            _prediction = Map<String, dynamic>.from(res.data['data']);
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _error = res.data?['message'] ??
+                'Market prediction is currently unavailable.';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error = 'Market prediction is currently unavailable.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F3FF),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFDDD6FE)),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7C3AED)),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Generating market prediction...',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFF5B21B6),
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Analyzing ML price forecasting model',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF7C3AED)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_error != null || _prediction == null) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFDE68A)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off_outlined,
+                color: Color(0xFFD97706), size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _error ?? 'Market prediction is currently unavailable.',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF92400E),
+                    ),
+                  ),
+                  const Text(
+                    'Live market prices remain active.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: _fetchPrediction,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFB45309),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Try Again',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final double? predictedPrice =
+        (_prediction!['predictedPrice'] as num?)?.toDouble();
+    final double? actualPrice =
+        (_prediction!['actualPrice'] as num?)?.toDouble();
+    final double? changePct =
+        (_prediction!['predictedChangePercent'] as num?)?.toDouble();
+    final String trend = (_prediction!['trend'] as String?) ?? 'STABLE';
+    final String modelVer =
+        (_prediction!['modelVersion'] as String?) ?? 'agri_price_model_v1';
+
+    Color trendColor = const Color(0xFF2563EB);
+    IconData trendIcon = Icons.trending_flat;
+    String trendLabel = 'Stable';
+
+    if (trend == 'INCREASING' || (changePct != null && changePct > 0)) {
+      trendColor = const Color(0xFF059669);
+      trendIcon = Icons.trending_up;
+      trendLabel = 'Increasing';
+    } else if (trend == 'DECREASING' || (changePct != null && changePct < 0)) {
+      trendColor = const Color(0xFFDC2626);
+      trendIcon = Icons.trending_down;
+      trendLabel = 'Decreasing';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEDE9FE),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.auto_graph,
+                        color: Color(0xFF7C3AED), size: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'ML Price Prediction',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEDE9FE),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  modelVer,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6D28D9),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'ML Predicted Price',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      predictedPrice != null
+                          ? '₹${predictedPrice.toStringAsFixed(0)} / Quintal'
+                          : '₹-- / Quintal',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF7C3AED),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (actualPrice != null)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Current Market Price',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '₹${actualPrice.toStringAsFixed(0)} / Quintal',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          if (changePct != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: trendColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: trendColor.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                children: [
+                  Icon(trendIcon, size: 16, color: trendColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Predicted Change: ${changePct >= 0 ? '+' : ''}${changePct.toStringAsFixed(2)}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: trendColor,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Trend: $trendLabel',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: trendColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 6),
+          const Text(
+            'ML prediction is based on CatBoost regression. Unit: ₹ / Quintal.',
+            style: TextStyle(
+                fontSize: 10,
+                color: Color(0xFF94A3B8),
+                fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
     );
   }
 }

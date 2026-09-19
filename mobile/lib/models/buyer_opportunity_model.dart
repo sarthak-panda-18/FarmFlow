@@ -47,10 +47,14 @@ class BuyerOpportunityModel {
       farmerId: farmer['id'] ?? farmer['_id'] ?? '',
       farmerName: farmer['name'] ?? 'Farmer',
       farmerPhone: farmer['phone'] ?? '',
-      farmerRating: farmerStats['rating'] != null ? (farmerStats['rating'] as num).toDouble() : null,
+      farmerRating: farmerStats['rating'] != null
+          ? (farmerStats['rating'] as num).toDouble()
+          : null,
       farmerRatingCount: farmerStats['ratingCount'] ?? 0,
-      farmerRatingLabel: farmerStats['label'] ?? (farmerStats['isNew'] == true ? 'New Farmer' : 'No ratings yet'),
-      farmerIsNew: farmerStats['isNew'] ?? (farmerStats['ratingCount'] == 0 || farmerStats['rating'] == null),
+      farmerRatingLabel: farmerStats['label'] ??
+          (farmerStats['isNew'] == true ? 'New Farmer' : 'No ratings yet'),
+      farmerIsNew: farmerStats['isNew'] ??
+          (farmerStats['ratingCount'] == 0 || farmerStats['rating'] == null),
       cropId: crop['id'] ?? crop['_id'],
       commodity: json['commodity'] ?? crop['commodity'] ?? 'Crop',
       cropName: crop['cropName'] ?? json['commodity'],
@@ -133,10 +137,14 @@ class DiscoverFarmerCropModel {
       description: json['description'] ?? '',
       farmerId: farmer['id'] ?? farmer['_id'] ?? '',
       farmerName: farmer['name'] ?? 'Farmer',
-      farmerRating: farmerStats['rating'] != null ? (farmerStats['rating'] as num).toDouble() : null,
+      farmerRating: farmerStats['rating'] != null
+          ? (farmerStats['rating'] as num).toDouble()
+          : null,
       farmerRatingCount: farmerStats['ratingCount'] ?? 0,
-      farmerRatingLabel: farmerStats['label'] ?? (farmerStats['isNew'] == true ? 'New Farmer' : 'No ratings yet'),
-      farmerIsNew: farmerStats['isNew'] ?? (farmerStats['ratingCount'] == 0 || farmerStats['rating'] == null),
+      farmerRatingLabel: farmerStats['label'] ??
+          (farmerStats['isNew'] == true ? 'New Farmer' : 'No ratings yet'),
+      farmerIsNew: farmerStats['isNew'] ??
+          (farmerStats['ratingCount'] == 0 || farmerStats['rating'] == null),
       userInterestStatus: json['userInterestStatus'],
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt']) ?? DateTime.now()

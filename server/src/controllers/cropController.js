@@ -2,6 +2,9 @@ const Crop = require('../models/Crop');
 const BuyerRequirement = require('../models/BuyerRequirement');
 const Notification = require('../models/Notification');
 const { normalizeCropName } = require('../utils/normalizeCrop');
+const { isValidCoordinates, buildGeoJsonPoint } = require('../utils/geoUtils');
+const { getMarketCoordinates } = require('../utils/districtCoordinates');
+const { sanitizeAddress, formatAddressParts } = require('../utils/locationResolver');
 
 /**
  * @desc    Create a new farmer crop entry
@@ -23,6 +26,9 @@ const createCrop = async (req, res, next) => {
       district,
       market,
       location,
+      latitude,
+      longitude,
+      locationCoordinates,
       description,
     } = req.body;
 
@@ -69,6 +75,32 @@ const createCrop = async (req, res, next) => {
     // Derive farmerId strictly from authenticated token
     const farmerId = req.user.userId;
 
+    const cleanState = sanitizeAddress(state);
+    const cleanDistrict = sanitizeAddress(district);
+    const cleanMarket = sanitizeAddress(market);
+    const cleanLoc = sanitizeAddress(location) || formatAddressParts(cleanMarket, cleanDistrict, cleanState);
+
+    let cropGeoPoint = undefined;
+    if (isValidCoordinates(latitude, longitude)) {
+      cropGeoPoint = buildGeoJsonPoint(Number(longitude), Number(latitude));
+    } else if (
+      locationCoordinates &&
+      typeof locationCoordinates === 'object' &&
+      Array.isArray(locationCoordinates.coordinates) &&
+      locationCoordinates.coordinates.length === 2 &&
+      isValidCoordinates(locationCoordinates.coordinates[1], locationCoordinates.coordinates[0])
+    ) {
+      cropGeoPoint = {
+        type: 'Point',
+        coordinates: [Number(locationCoordinates.coordinates[0]), Number(locationCoordinates.coordinates[1])],
+      };
+    } else if (cleanState || cleanDistrict || cleanMarket) {
+      const coords = getMarketCoordinates(cleanState, cleanDistrict, cleanMarket);
+      if (coords && isValidCoordinates(coords.lat, coords.lng)) {
+        cropGeoPoint = buildGeoJsonPoint(coords.lng, coords.lat);
+      }
+    }
+
     const crop = await Crop.create({
       farmerId,
       commodity: commodity.trim(),
@@ -79,10 +111,11 @@ const createCrop = async (req, res, next) => {
       quantityUnit: quantityUnit.toLowerCase(),
       expectedPrice: numPrice,
       harvestDate: parsedDate,
-      state: state.trim(),
-      district: district.trim(),
-      market: (market || '').trim(),
-      location: (location || market || district).trim(),
+      state: cleanState,
+      district: cleanDistrict,
+      market: cleanMarket,
+      location: cleanLoc,
+      locationCoordinates: cropGeoPoint,
       description: (description || '').trim(),
       status: 'AVAILABLE',
     });

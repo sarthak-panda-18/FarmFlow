@@ -14,8 +14,9 @@ class VerificationStatusBanner extends StatelessWidget {
     final userRole = authProvider.userRole ?? 'FARMER';
     final isPhoneVerified = authProvider.isPhoneVerified;
     final verificationStatus = authProvider.verificationStatus;
-    final targetVerificationRoute =
-        userRole == 'FARMER' ? AppConstants.routeFarmerVerification : AppConstants.routeBuyerVerification;
+    final targetVerificationRoute = userRole == 'FARMER'
+        ? AppConstants.routeFarmerVerification
+        : AppConstants.routeBuyerVerification;
 
     if (!isPhoneVerified) {
       return Card(
@@ -105,7 +106,8 @@ class VerificationStatusBanner extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 'Your $userRole verification submission is under review. Restricted marketplace publishing will open once approved.',
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),
               SizedBox(
@@ -217,7 +219,8 @@ class VerificationStatusBanner extends StatelessWidget {
                   ),
                   const Text(
                     'Full marketplace features enabled.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style:
+                        TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
               ),

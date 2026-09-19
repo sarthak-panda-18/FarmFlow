@@ -9,7 +9,8 @@ class BuyerVerificationScreen extends StatefulWidget {
   const BuyerVerificationScreen({super.key});
 
   @override
-  State<BuyerVerificationScreen> createState() => _BuyerVerificationScreenState();
+  State<BuyerVerificationScreen> createState() =>
+      _BuyerVerificationScreenState();
 }
 
 class _BuyerVerificationScreenState extends State<BuyerVerificationScreen> {
@@ -35,10 +36,12 @@ class _BuyerVerificationScreenState extends State<BuyerVerificationScreen> {
   void initState() {
     super.initState();
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    if (authProvider.businessName != null && authProvider.businessName!.isNotEmpty) {
+    if (authProvider.businessName != null &&
+        authProvider.businessName!.isNotEmpty) {
       _businessNameController.text = authProvider.businessName!;
     }
-    if (authProvider.businessType != null && authProvider.businessType!.isNotEmpty) {
+    if (authProvider.businessType != null &&
+        authProvider.businessType!.isNotEmpty) {
       if (_businessTypes.contains(authProvider.businessType!.toUpperCase())) {
         _selectedBusinessType = authProvider.businessType!.toUpperCase();
       }
@@ -82,7 +85,8 @@ class _BuyerVerificationScreenState extends State<BuyerVerificationScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Buyer business verification submitted successfully! Status: PENDING'),
+          content: Text(
+              'Buyer business verification submitted successfully! Status: PENDING'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -121,7 +125,8 @@ class _BuyerVerificationScreenState extends State<BuyerVerificationScreen> {
                   child: CircleAvatar(
                     radius: 36,
                     backgroundColor: Color(0xFFFEF3C7),
-                    child: Icon(Icons.storefront, size: 40, color: AppColors.secondary),
+                    child: Icon(Icons.storefront,
+                        size: 40, color: AppColors.secondary),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -152,7 +157,8 @@ class _BuyerVerificationScreenState extends State<BuyerVerificationScreen> {
                           ? const Color(0xFFFEF2F2)
                           : const Color(0xFFFEF3C7),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.borderRadius),
                     side: BorderSide(
                       color: status == 'VERIFIED'
                           ? AppColors.success
@@ -184,7 +190,8 @@ class _BuyerVerificationScreenState extends State<BuyerVerificationScreen> {
                             children: [
                               Text(
                                 'Current Status: $status',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                               Text(
                                 status == 'VERIFIED'
@@ -192,7 +199,9 @@ class _BuyerVerificationScreenState extends State<BuyerVerificationScreen> {
                                     : status == 'REJECTED'
                                         ? 'Verification rejected. Please update details and resubmit.'
                                         : 'Your business verification submission is pending review.',
-                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary),
                               ),
                             ],
                           ),
@@ -209,12 +218,14 @@ class _BuyerVerificationScreenState extends State<BuyerVerificationScreen> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadius),
                       border: Border.all(color: AppColors.error),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          color: AppColors.error, fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -291,7 +302,8 @@ class _BuyerVerificationScreenState extends State<BuyerVerificationScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadius),
                     ),
                   ),
                   child: _isLoading
@@ -304,8 +316,11 @@ class _BuyerVerificationScreenState extends State<BuyerVerificationScreen> {
                           ),
                         )
                       : Text(
-                          status == 'PENDING' ? 'Update Business Info' : 'Submit Buyer Verification',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          status == 'PENDING'
+                              ? 'Update Business Info'
+                              : 'Submit Buyer Verification',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                 ),
                 const SizedBox(height: 16),

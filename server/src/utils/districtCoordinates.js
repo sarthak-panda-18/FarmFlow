@@ -7,10 +7,15 @@
 const STATE_CENTROIDS = {
   'Andhra Pradesh': { lat: 15.9129, lng: 79.7400 },
   'Gujarat': { lat: 22.2587, lng: 71.1924 },
+  'Haryana': { lat: 29.0588, lng: 76.0856 },
+  'Karnataka': { lat: 15.3173, lng: 75.7139 },
   'Kerala': { lat: 10.8505, lng: 76.2711 },
   'Madhya Pradesh': { lat: 22.9734, lng: 78.6569 },
+  'Maharashtra': { lat: 19.7515, lng: 75.7139 },
   'Punjab': { lat: 31.1471, lng: 75.3412 },
   'Rajasthan': { lat: 27.0238, lng: 74.2179 },
+  'Tamil Nadu': { lat: 11.1271, lng: 78.6569 },
+  'Telangana': { lat: 18.1124, lng: 79.0193 },
   'Uttar Pradesh': { lat: 26.8467, lng: 80.9462 },
   'West Bengal': { lat: 22.9868, lng: 87.8550 },
 };
@@ -317,10 +322,122 @@ const DISTRICT_COORDINATES = {
     'Sounth 24 Parganas': { lat: 22.1500, lng: 88.4500 },
     'Uttar Dinajpur': { lat: 25.6200, lng: 88.1200 },
   },
+
+  // --- MAHARASHTRA ---
+  'Maharashtra': {
+    'Nashik': { lat: 19.9975, lng: 73.7898 },
+    'Pune': { lat: 18.5204, lng: 73.8567 },
+    'Mumbai': { lat: 19.0760, lng: 72.8777 },
+    'Nagpur': { lat: 21.1458, lng: 79.0882 },
+    'Ahmednagar': { lat: 19.0948, lng: 74.7480 },
+    'Aurangabad': { lat: 19.8762, lng: 75.3433 },
+    'Chhatrapati Sambhajinagar': { lat: 19.8762, lng: 75.3433 },
+    'Solapur': { lat: 17.6599, lng: 75.9064 },
+    'Kolhapur': { lat: 16.7050, lng: 74.2433 },
+    'Jalgaon': { lat: 21.0077, lng: 75.5626 },
+    'Satara': { lat: 17.6805, lng: 74.0183 },
+    'Sangli': { lat: 16.8524, lng: 74.5815 },
+    'Amravati': { lat: 20.9320, lng: 77.7523 },
+    'Latur': { lat: 18.4088, lng: 76.5604 },
+    'Dhule': { lat: 20.9042, lng: 74.7749 },
+    'Nanded': { lat: 19.1383, lng: 77.3210 },
+    'Buldhana': { lat: 20.5312, lng: 76.1837 },
+    'Yavatmal': { lat: 20.3888, lng: 78.1204 },
+    'Wardha': { lat: 20.7453, lng: 78.6022 },
+    'Akola': { lat: 20.7002, lng: 77.0082 },
+    'Beed': { lat: 18.9891, lng: 75.7601 },
+    'Jalna': { lat: 19.8347, lng: 75.8816 },
+    'Parbhani': { lat: 19.2612, lng: 76.7767 },
+    'Raigad': { lat: 18.5158, lng: 73.1812 },
+    'Ratnagiri': { lat: 16.9902, lng: 73.3120 },
+    'Sindhudurg': { lat: 16.1264, lng: 73.6844 },
+    'Thane': { lat: 19.2183, lng: 72.9781 },
+    'Palghar': { lat: 19.6967, lng: 72.7699 },
+    'Nandurbar': { lat: 21.3705, lng: 74.2405 },
+    'Washim': { lat: 20.1110, lng: 77.1352 },
+    'Hingoli': { lat: 19.7196, lng: 77.1477 },
+    'Gondia': { lat: 21.4554, lng: 80.1961 },
+    'Bhandara': { lat: 21.1667, lng: 79.6500 },
+    'Chandrapur': { lat: 19.9615, lng: 79.2961 },
+    'Gadchiroli': { lat: 20.1809, lng: 80.0017 },
+  },
+
+  // --- KARNATAKA ---
+  'Karnataka': {
+    'Bengaluru': { lat: 12.9716, lng: 77.5946 },
+    'Bangalore': { lat: 12.9716, lng: 77.5946 },
+    'Mysuru': { lat: 12.2958, lng: 76.6394 },
+    'Mysore': { lat: 12.2958, lng: 76.6394 },
+    'Belagavi': { lat: 15.8497, lng: 74.4977 },
+    'Dharwad': { lat: 15.4589, lng: 75.0078 },
+    'Hubballi': { lat: 15.3647, lng: 75.1240 },
+    'Kalaburagi': { lat: 17.3297, lng: 76.8343 },
+    'Raichur': { lat: 16.2120, lng: 77.3439 },
+    'Shimoga': { lat: 13.9299, lng: 75.5681 },
+    'Davanagere': { lat: 14.4644, lng: 75.9218 },
+    'Bellary': { lat: 15.1394, lng: 76.9214 },
+    'Mandya': { lat: 12.5244, lng: 76.8966 },
+    'Hassan': { lat: 13.0033, lng: 76.1004 },
+    'Tumakuru': { lat: 13.3379, lng: 77.1010 },
+  },
+
+  // --- TAMIL NADU ---
+  'Tamil Nadu': {
+    'Chennai': { lat: 13.0827, lng: 80.2707 },
+    'Coimbatore': { lat: 11.0168, lng: 76.9558 },
+    'Madurai': { lat: 9.9252, lng: 78.1198 },
+    'Salem': { lat: 11.6643, lng: 78.1460 },
+    'Tiruchirappalli': { lat: 10.7905, lng: 78.7047 },
+    'Erode': { lat: 11.3410, lng: 77.7172 },
+    'Tirunelveli': { lat: 8.7139, lng: 77.7567 },
+    'Vellore': { lat: 12.9165, lng: 79.1325 },
+    'Thanjavur': { lat: 10.7870, lng: 79.1378 },
+  },
+
+  // --- TELANGANA ---
+  'Telangana': {
+    'Hyderabad': { lat: 17.3850, lng: 78.4867 },
+    'Warangal': { lat: 17.9689, lng: 79.5941 },
+    'Nizamabad': { lat: 18.6725, lng: 78.0941 },
+    'Khammam': { lat: 17.2473, lng: 80.1514 },
+    'Karimnagar': { lat: 18.4386, lng: 79.1288 },
+    'Mahbubnagar': { lat: 16.7488, lng: 77.9856 },
+    'Nalgonda': { lat: 17.0577, lng: 79.2684 },
+  },
+
+  // --- HARYANA ---
+  'Haryana': {
+    'Karnal': { lat: 29.6857, lng: 76.9905 },
+    'Kurukshetra': { lat: 29.9695, lng: 76.8783 },
+    'Ambala': { lat: 30.3782, lng: 76.7767 },
+    'Hisar': { lat: 29.1492, lng: 75.7217 },
+    'Rohtak': { lat: 28.8955, lng: 76.6066 },
+    'Sirsa': { lat: 29.5349, lng: 75.0298 },
+    'Panipat': { lat: 29.3909, lng: 76.9635 },
+    'Sonipat': { lat: 28.9931, lng: 77.0151 },
+    'Fatehabad': { lat: 29.5167, lng: 75.4500 },
+    'Gurugram': { lat: 28.4595, lng: 77.0266 },
+    'Faridabad': { lat: 28.4089, lng: 77.3178 },
+  },
 };
 
 // Specific APMC Mandi coordinates (for high precision within districts)
 const SPECIFIC_MARKET_COORDINATES = {
+  // Maharashtra Mandis
+  'Pimpalgaon': { lat: 20.1700, lng: 73.9800 },
+  'Lasalgaon': { lat: 20.1472, lng: 74.2289 },
+  'Dindori': { lat: 20.2000, lng: 73.8333 },
+  'Vashi': { lat: 19.0771, lng: 72.9986 },
+  'Gultekdi': { lat: 18.4967, lng: 73.8647 },
+  'Baramati': { lat: 18.1517, lng: 74.5772 },
+  'Sangamner': { lat: 19.5762, lng: 74.2070 },
+  'Kopargaon': { lat: 19.8833, lng: 74.4833 },
+  'Rahata': { lat: 19.7000, lng: 74.4833 },
+  'Shrirampur': { lat: 19.6167, lng: 74.6500 },
+  'Manchar': { lat: 19.0000, lng: 73.9333 },
+  'Junnar': { lat: 19.2000, lng: 73.8800 },
+  'Khed(Chakan)': { lat: 18.7567, lng: 73.8583 },
+
   // Andhra Pradesh Mandis
   'Kanchekacherla': { lat: 16.6394, lng: 80.3957 },
   'Mylavaram': { lat: 16.7628, lng: 80.6394 },
@@ -396,8 +513,8 @@ function getMarketCoordinates(state, district, market) {
     return STATE_CENTROIDS[state];
   }
 
-  // General India Centroid
-  return { lat: 20.5937, lng: 78.9629 };
+  // If no market, district, or state matched, coordinates are unavailable
+  return null;
 }
 
 module.exports = {

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/deal_service.dart';
+import '../../services/location_service.dart';
+import '../../widgets/farm_empty_state.dart';
 
 class DealAgreementScreen extends StatefulWidget {
   final String dealId;
@@ -64,7 +65,8 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
     if (!_hasAgreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please check the box to agree to the Terms & Conditions before accepting.'),
+          content: Text(
+              'Please check the box to agree to the Terms & Conditions before accepting.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -108,21 +110,17 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
     }
   }
 
-  void _openGoogleMaps(String? url, double? lat, double? lng) async {
-    String? targetUrl = url;
-    if ((targetUrl == null || targetUrl.isEmpty) && lat != null && lng != null && lat != 0 && lng != 0) {
-      targetUrl = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
-    }
+  void _openGoogleMaps(String? url, double? lat, double? lng,
+      {String? address, String? label}) async {
+    final success = await LocationService.launchGoogleMaps(
+      latitude: lat,
+      longitude: lng,
+      address: address,
+      mapsUrl: url,
+      label: label,
+    );
 
-    if (targetUrl != null && targetUrl.isNotEmpty) {
-      final uri = Uri.parse(targetUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        return;
-      }
-    }
-
-    if (mounted) {
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to launch Google Maps.')),
       );
@@ -131,7 +129,8 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
 
   String _formatCurrency(num? val) {
     if (val == null) return '₹0';
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format =
+        NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
     return format.format(val);
   }
 
@@ -181,28 +180,37 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                        const SizedBox(height: 12),
-                        Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 15)),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _fetchAgreement,
-                          child: const Text('Try Again'),
-                        ),
-                      ],
+                    child: FarmEmptyState(
+                      icon: Icons.error_outline,
+                      title: 'Unable to Load Agreement',
+                      message: _errorMessage!,
+                      actionLabel: 'Try Again',
+                      actionIcon: Icons.refresh,
+                      onAction: _fetchAgreement,
                     ),
                   ),
                 )
               : _agreementData == null
-                  ? const Center(child: Text('Agreement data unavailable'))
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: FarmEmptyState(
+                          icon: Icons.article_outlined,
+                          title: 'Agreement not found',
+                          message:
+                              'Official deal agreement details could not be found.',
+                          actionLabel: 'Go Back',
+                          actionIcon: Icons.arrow_back,
+                          onAction: () => Navigator.of(context).pop(),
+                        ),
+                      ),
+                    )
                   : RefreshIndicator(
                       onRefresh: _fetchAgreement,
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                        padding:
+                            const EdgeInsets.all(AppConstants.paddingMedium),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -253,7 +261,9 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
           ),
         ],
         border: Border.all(
-          color: isFullyConfirmed ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
+          color: isFullyConfirmed
+              ? const Color(0xFF16A34A)
+              : const Color(0xFFCBD5E1),
           width: isFullyConfirmed ? 2 : 1,
         ),
       ),
@@ -263,7 +273,8 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
@@ -271,33 +282,60 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
                 ),
                 child: Text(
                   'Agreement v$version',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF475569)),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Color(0xFF475569)),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isFullyConfirmed ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+                  color: isFullyConfirmed
+                      ? const Color(0xFFDCFCE7)
+                      : const Color(0xFFFEF3C7),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isFullyConfirmed ? const Color(0xFF86EFAC) : const Color(0xFFFDE68A),
+                    color: isFullyConfirmed
+                        ? const Color(0xFF86EFAC)
+                        : const Color(0xFFFDE68A),
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      isFullyConfirmed ? Icons.check_circle : Icons.hourglass_top,
+                      isFullyConfirmed
+                          ? Icons.check_circle
+                          : Icons.hourglass_top,
                       size: 14,
-                      color: isFullyConfirmed ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+                      color: isFullyConfirmed
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFFD97706),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      isFullyConfirmed ? 'MUTUALLY CONFIRMED' : 'MUTUAL ACCEPTANCE PENDING',
+                      isFullyConfirmed
+                          ? 'DEAL AGREEMENT CONFIRMED'
+                          : ((_agreementData?['farmer']?['hasAccepted'] ==
+                                      true &&
+                                  _agreementData?['buyer']?['hasAccepted'] !=
+                                      true)
+                              ? 'WAITING FOR BUYER CONFIRMATION'
+                              : ((_agreementData?['buyer']?['hasAccepted'] ==
+                                          true &&
+                                      _agreementData?['farmer']
+                                              ?['hasAccepted'] !=
+                                          true)
+                                  ? 'WAITING FOR FARMER CONFIRMATION'
+                                  : 'MUTUAL CONFIRMATION PENDING')),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
-                        color: isFullyConfirmed ? const Color(0xFF15803D) : const Color(0xFFB45309),
+                        color: isFullyConfirmed
+                            ? const Color(0xFF15803D)
+                            : const Color(0xFFB45309),
                       ),
                     ),
                   ],
@@ -336,7 +374,8 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
 
     return Card(
       elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -344,7 +383,10 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
           children: [
             const Text(
               'Mutual Confirmation Status',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppColors.textPrimary),
             ),
             const Divider(height: 20),
             // Farmer Acceptance Row
@@ -352,10 +394,14 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: farmerAccepted ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                  backgroundColor: farmerAccepted
+                      ? const Color(0xFFDCFCE7)
+                      : const Color(0xFFF1F5F9),
                   child: Icon(
                     farmerAccepted ? Icons.check : Icons.person_outline,
-                    color: farmerAccepted ? const Color(0xFF16A34A) : AppColors.textMuted,
+                    color: farmerAccepted
+                        ? const Color(0xFF16A34A)
+                        : AppColors.textMuted,
                     size: 20,
                   ),
                 ),
@@ -366,7 +412,8 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
                     children: [
                       Text(
                         'Farmer: ${farmer['name'] ?? 'Farmer'}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                       Text(
                         farmerAccepted
@@ -374,16 +421,24 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
                             : 'Waiting for acceptance...',
                         style: TextStyle(
                           fontSize: 11,
-                          color: farmerAccepted ? const Color(0xFF16A34A) : const Color(0xFFD97706),
-                          fontWeight: farmerAccepted ? FontWeight.w600 : FontWeight.normal,
+                          color: farmerAccepted
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFFD97706),
+                          fontWeight: farmerAccepted
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                     ],
                   ),
                 ),
                 Icon(
-                  farmerAccepted ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: farmerAccepted ? const Color(0xFF16A34A) : Colors.grey[400],
+                  farmerAccepted
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  color: farmerAccepted
+                      ? const Color(0xFF16A34A)
+                      : Colors.grey[400],
                 ),
               ],
             ),
@@ -393,10 +448,14 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: buyerAccepted ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                  backgroundColor: buyerAccepted
+                      ? const Color(0xFFDCFCE7)
+                      : const Color(0xFFF1F5F9),
                   child: Icon(
                     buyerAccepted ? Icons.check : Icons.business_outlined,
-                    color: buyerAccepted ? const Color(0xFF16A34A) : AppColors.textMuted,
+                    color: buyerAccepted
+                        ? const Color(0xFF16A34A)
+                        : AppColors.textMuted,
                     size: 20,
                   ),
                 ),
@@ -407,7 +466,8 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
                     children: [
                       Text(
                         'Buyer: ${buyer['businessName']?.isNotEmpty == true ? buyer['businessName'] : buyer['name'] ?? 'Buyer'}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                       Text(
                         buyerAccepted
@@ -415,16 +475,24 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
                             : 'Waiting for acceptance...',
                         style: TextStyle(
                           fontSize: 11,
-                          color: buyerAccepted ? const Color(0xFF16A34A) : const Color(0xFFD97706),
-                          fontWeight: buyerAccepted ? FontWeight.w600 : FontWeight.normal,
+                          color: buyerAccepted
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFFD97706),
+                          fontWeight: buyerAccepted
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                     ],
                   ),
                 ),
                 Icon(
-                  buyerAccepted ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: buyerAccepted ? const Color(0xFF16A34A) : Colors.grey[400],
+                  buyerAccepted
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  color: buyerAccepted
+                      ? const Color(0xFF16A34A)
+                      : Colors.grey[400],
                 ),
               ],
             ),
@@ -441,7 +509,8 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
 
     return Card(
       elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -449,24 +518,44 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
           children: [
             const Text(
               'Agreed Deal Parameters',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: AppColors.textPrimary),
             ),
             const Divider(height: 20),
             _buildInfoRow('Farmer Name:', farmer['name'] ?? 'Farmer'),
-            _buildInfoRow('Buyer Name:', buyer['businessName']?.isNotEmpty == true ? buyer['businessName'] : buyer['name'] ?? 'Buyer'),
+            _buildInfoRow(
+                'Buyer Name:',
+                buyer['businessName']?.isNotEmpty == true
+                    ? buyer['businessName']
+                    : buyer['name'] ?? 'Buyer'),
             _buildInfoRow('Crop:', d['crop'] ?? d['commodity'] ?? 'Crop'),
             if (d['variety'] != null && d['variety'].toString().isNotEmpty)
               _buildInfoRow('Variety:', d['variety'].toString()),
             _buildInfoRow('Quantity:', '${d['quantity']} Quintal'),
             _buildInfoRow('Agreed Price:', '₹${d['agreedPrice']} / Quintal'),
-            _buildInfoRow('Total Deal Value:', _formatCurrency(d['totalAmount']), isBold: true, highlightColor: AppColors.primary),
-            _buildInfoRow('Delivery / Required Date:', _formatDate(d['deliveryDate'])),
+            _buildInfoRow(
+                'Total Deal Value:', _formatCurrency(d['totalAmount']),
+                isBold: true, highlightColor: AppColors.primary),
+            _buildInfoRow(
+                'Delivery / Required Date:', _formatDate(d['deliveryDate'])),
             const Divider(height: 20),
-            _buildInfoRow('Transport Required:', d['transportRequired'] == true ? 'Yes (${d['transportType'] ?? 'Road'})' : 'Not Required'),
-            _buildInfoRow('Estimated Transport Cost:', _formatCurrency(d['transportCost'])),
-            _buildInfoRow('Other Costs (Loading/Packaging):', _formatCurrency(d['otherCosts'])),
-            _buildInfoRow('Estimated Net Return (Farmer):', _formatCurrency(d['estimatedNetReturn']), isBold: true, highlightColor: const Color(0xFF16A34A)),
-            _buildInfoRow('Estimated Total Landed Cost (Buyer):', _formatCurrency(d['estimatedTotalBuyerCost']), isBold: true),
+            _buildInfoRow(
+                'Transport Required:',
+                d['transportRequired'] == true
+                    ? 'Yes (${d['transportType'] ?? 'Road'})'
+                    : 'Not Required'),
+            _buildInfoRow('Estimated Transport Cost:',
+                _formatCurrency(d['transportCost'])),
+            _buildInfoRow('Other Costs (Loading/Packaging):',
+                _formatCurrency(d['otherCosts'])),
+            _buildInfoRow('Estimated Net Return (Farmer):',
+                _formatCurrency(d['estimatedNetReturn']),
+                isBold: true, highlightColor: const Color(0xFF16A34A)),
+            _buildInfoRow('Estimated Total Landed Cost (Buyer):',
+                _formatCurrency(d['estimatedTotalBuyerCost']),
+                isBold: true),
           ],
         ),
       ),
@@ -488,7 +577,8 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
 
     return Card(
       elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -499,18 +589,25 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
               children: [
                 const Text(
                   'Location & Route Details',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppColors.textPrimary),
                 ),
                 if (d['distanceKm'] != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       'Distance: ${d['distanceKm']} km',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF2563EB)),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                          color: Color(0xFF2563EB)),
                     ),
                   ),
               ],
@@ -520,28 +617,36 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.storefront_outlined, size: 20, color: AppColors.primary),
+                const Icon(Icons.storefront_outlined,
+                    size: 20, color: AppColors.primary),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Pickup Location (Farmer)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const Text('Pickup Location (Farmer)',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13)),
                       const SizedBox(height: 2),
                       Text(
-                        pickup['address']?.isNotEmpty == true ? pickup['address'] : 'Address not specified',
-                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        pickup['address']?.isNotEmpty == true
+                            ? pickup['address']
+                            : 'Address not specified',
+                        style: const TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
                 ),
-                if ((pLat != null && pLng != null) || (pMaps != null && pMaps.isNotEmpty))
-                  TextButton.icon(
-                    onPressed: () => _openGoogleMaps(pMaps, pLat, pLng),
-                    icon: const Icon(Icons.map, size: 16),
-                    label: const Text('Maps', style: TextStyle(fontSize: 12)),
-                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                  ),
+                TextButton.icon(
+                  onPressed: () => _openGoogleMaps(pMaps, pLat, pLng,
+                      address: pickup['address'],
+                      label: 'Pickup Location (Farmer)'),
+                  icon: const Icon(Icons.map, size: 16),
+                  label: const Text('Maps', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact),
+                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -549,28 +654,36 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.location_on_outlined, size: 20, color: AppColors.secondary),
+                const Icon(Icons.location_on_outlined,
+                    size: 20, color: AppColors.secondary),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Delivery Location (Buyer)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const Text('Delivery Location (Buyer)',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13)),
                       const SizedBox(height: 2),
                       Text(
-                        delivery['address']?.isNotEmpty == true ? delivery['address'] : 'Address not specified',
-                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        delivery['address']?.isNotEmpty == true
+                            ? delivery['address']
+                            : 'Address not specified',
+                        style: const TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
                 ),
-                if ((dLat != null && dLng != null) || (dMaps != null && dMaps.isNotEmpty))
-                  TextButton.icon(
-                    onPressed: () => _openGoogleMaps(dMaps, dLat, dLng),
-                    icon: const Icon(Icons.map, size: 16),
-                    label: const Text('Maps', style: TextStyle(fontSize: 12)),
-                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                  ),
+                TextButton.icon(
+                  onPressed: () => _openGoogleMaps(dMaps, dLat, dLng,
+                      address: delivery['address'],
+                      label: 'Delivery Location (Buyer)'),
+                  icon: const Icon(Icons.map, size: 16),
+                  label: const Text('Maps', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact),
+                ),
               ],
             ),
           ],
@@ -584,7 +697,8 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
 
     return Card(
       elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -596,7 +710,10 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
                 SizedBox(width: 8),
                 Text(
                   'Terms & Conditions',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppColors.textPrimary),
                 ),
               ],
             ),
@@ -606,11 +723,18 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary)),
+                      const Text('• ',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: AppColors.primary)),
                       Expanded(
                         child: Text(
                           t.toString().replaceFirst(RegExp(r'^\d+\.\s*'), ''),
-                          style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF334155)),
+                          style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.4,
+                              color: Color(0xFF334155)),
                         ),
                       ),
                     ],
@@ -641,7 +765,10 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
             SizedBox(width: 10),
             Text(
               'Agreement Mutually Confirmed & Locked',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF15803D)),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: Color(0xFF15803D)),
             ),
           ],
         ),
@@ -665,7 +792,10 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
                 SizedBox(width: 8),
                 Text(
                   'You have accepted this agreement.',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF15803D), fontSize: 14),
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF15803D),
+                      fontSize: 14),
                 ),
               ],
             ),
@@ -702,32 +832,44 @@ class _DealAgreementScreenState extends State<DealAgreementScreen> {
         ),
         const SizedBox(height: 14),
         ElevatedButton.icon(
-          onPressed: (_hasAgreedToTerms && !_isSubmitting) ? _handleAcceptAgreement : null,
+          onPressed: (_hasAgreedToTerms && !_isSubmitting)
+              ? _handleAcceptAgreement
+              : null,
           icon: _isSubmitting
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
               : const Icon(Icons.handshake_outlined),
           label: Text(
-            _isSubmitting ? 'Recording Agreement...' : 'Accept Official Agreement',
+            _isSubmitting
+                ? 'Recording Agreement...'
+                : 'Accept Official Agreement',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {bool isBold = false, Color? highlightColor}) {
+  Widget _buildInfoRow(String label, String value,
+      {bool isBold = false, Color? highlightColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary)),
           Flexible(
             child: Text(
               value,

@@ -15,7 +15,8 @@ class NotificationBellButton extends StatefulWidget {
   State<NotificationBellButton> createState() => _NotificationBellButtonState();
 }
 
-class _NotificationBellButtonState extends State<NotificationBellButton> with WidgetsBindingObserver {
+class _NotificationBellButtonState extends State<NotificationBellButton>
+    with WidgetsBindingObserver {
   final ApiService _apiService = ApiService();
   int _unreadCount = 0;
 
@@ -45,7 +46,8 @@ class _NotificationBellButtonState extends State<NotificationBellButton> with Wi
       if (mounted && res.data != null && res.data['success'] == true) {
         final count = res.data['data']?['unreadCount'] ?? 0;
         setState(() {
-          _unreadCount = count is int ? count : int.tryParse(count.toString()) ?? 0;
+          _unreadCount =
+              count is int ? count : int.tryParse(count.toString()) ?? 0;
         });
       }
     } catch (_) {}
@@ -58,7 +60,9 @@ class _NotificationBellButtonState extends State<NotificationBellButton> with Wi
       children: [
         IconButton(
           icon: Icon(
-            _unreadCount > 0 ? Icons.notifications_active : Icons.notifications_outlined,
+            _unreadCount > 0
+                ? Icons.notifications_active
+                : Icons.notifications_outlined,
             color: widget.iconColor,
           ),
           tooltip: 'Notifications',

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_constants.dart';
 import '../../models/crop_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../widgets/farm_badge.dart';
+import '../../widgets/farm_card.dart';
 
 class CropDetailScreen extends StatefulWidget {
   final CropModel crop;
@@ -46,33 +50,18 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
     return '$day $month $year';
   }
 
-  Color _getStatusBgColor(String status) {
+  FarmBadgeType _getBadgeType(String status) {
     switch (status.toUpperCase()) {
       case 'AVAILABLE':
-        return const Color(0xFFDCFCE7);
+        return FarmBadgeType.success;
       case 'RESERVED':
-        return const Color(0xFFFEF3C7);
+        return FarmBadgeType.warning;
       case 'SOLD':
-        return const Color(0xFFDBEAFE);
+        return FarmBadgeType.info;
       case 'CANCELLED':
-        return const Color(0xFFFEE2E2);
+        return FarmBadgeType.error;
       default:
-        return const Color(0xFFF3F4F6);
-    }
-  }
-
-  Color _getStatusTextColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'AVAILABLE':
-        return const Color(0xFF166534);
-      case 'RESERVED':
-        return const Color(0xFF92400E);
-      case 'SOLD':
-        return const Color(0xFF1E40AF);
-      case 'CANCELLED':
-        return const Color(0xFF991B1B);
-      default:
-        return const Color(0xFF374151);
+        return FarmBadgeType.neutral;
     }
   }
 
@@ -81,9 +70,9 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Delete Crop'),
-          content: Text(
-            'Are you sure you want to remove "${_crop.commodity}" from your listed crops?',
+          title: const Text('Delete Crop?'),
+          content: const Text(
+            'Are you sure you want to delete this crop? This action cannot be undone.',
           ),
           actions: [
             TextButton(
@@ -96,7 +85,7 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
                 foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Remove'),
+              child: const Text('Delete'),
             ),
           ],
         );
@@ -118,11 +107,12 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
 
       if (!mounted) return;
 
-      final body = response.data as Map<String, dynamic>;
-      if (response.statusCode == 200 && body['success'] == true) {
+      final body = response.data as Map<String, dynamic>?;
+      if (response.statusCode == 200 &&
+          (body == null || body['success'] == true)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(body['message'] ?? 'Crop deleted successfully'),
+            content: Text(body?['message'] ?? 'Crop deleted successfully.'),
             backgroundColor: AppColors.primary,
           ),
         );
@@ -130,7 +120,7 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(body['message'] ?? 'Failed to delete crop'),
+            content: Text(body?['message'] ?? 'Failed to delete crop.'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -139,7 +129,8 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error deleting crop: ${e.toString()}'),
+          content: Text(
+              'Error deleting crop: ${e.toString().replaceAll('Exception: ', '')}'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -154,13 +145,21 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final formattedHarvestDate = _formatDate(_crop.harvestDate);
-    final formattedCreatedDate = _crop.createdAt != null
-        ? _formatDate(_crop.createdAt!)
-        : 'N/A';
+    final authProvider = Provider.of<AuthProvider>(context);
+    final currentUserId = authProvider.userId;
+    final isFarmer = authProvider.userRole == 'FARMER';
+    final isOwner = _crop.farmerId == null ||
+        _crop.farmerId!.isEmpty ||
+        _crop.farmerId == currentUserId;
 
-    final canEdit = _crop.status.toUpperCase() == 'AVAILABLE';
-    final canDelete = _crop.status.toUpperCase() != 'RESERVED' &&
+    final formattedHarvestDate = _formatDate(_crop.harvestDate);
+    final formattedCreatedDate =
+        _crop.createdAt != null ? _formatDate(_crop.createdAt!) : 'N/A';
+
+    final canEdit =
+        (isFarmer || isOwner) && _crop.status.toUpperCase() == 'AVAILABLE';
+    final canDelete = (isFarmer || isOwner) &&
+        _crop.status.toUpperCase() != 'RESERVED' &&
         _crop.status.toUpperCase() != 'SOLD';
 
     return Scaffold(
@@ -172,7 +171,7 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
         actions: [
           if (canEdit)
             IconButton(
-              icon: const Icon(Icons.edit),
+              icon: const Icon(Icons.edit, size: 20),
               tooltip: 'Edit Crop',
               onPressed: () async {
                 final updated = await context.push<CropModel>(
@@ -186,390 +185,298 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
                 }
               },
             ),
+          if (canDelete)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 20),
+              tooltip: 'Delete Crop',
+              onPressed: _isDeleting ? null : _confirmDelete,
+            ),
         ],
       ),
       body: _isDeleting
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(AppConstants.paddingMedium),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title Header Card
-                  Card(
-                    elevation: AppConstants.cardElevation,
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppConstants.borderRadius),
-                    ),
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.all(AppConstants.paddingMedium),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _crop.commodity,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.textPrimary,
-                                      ),
+                  // Header Summary Card (Pale Green)
+                  FarmCard(
+                    variant: FarmCardVariant.paleGreen,
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _crop.cropName.isNotEmpty
+                                    ? _crop.cropName
+                                    : _crop.commodity,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getStatusBgColor(_crop.status),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  _crop.status.toUpperCase(),
-                                  style: TextStyle(
-                                    color: _getStatusTextColor(_crop.status),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_crop.cropName != _crop.commodity) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              'Entered as: ${_crop.cropName}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontStyle: FontStyle.italic,
-                                  ),
+                            ),
+                            FarmBadge(
+                              label: _crop.status.toUpperCase(),
+                              type: _getBadgeType(_crop.status),
                             ),
                           ],
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              const Icon(Icons.inventory_2,
-                                  size: 18, color: AppColors.primary),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${_crop.quantity} ${_crop.quantityUnit}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary,
-                                    ),
-                              ),
-                              const Spacer(),
-                              if (_crop.expectedPrice != null) ...[
-                                const Icon(Icons.currency_rupee,
-                                    size: 18, color: AppColors.secondary),
+                        ),
+                        if (_crop.cropName != _crop.commodity &&
+                            _crop.cropName.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Commodity: ${_crop.commodity}',
+                            style: const TextStyle(
+                                fontSize: 13, color: AppColors.textSecondary),
+                          ),
+                        ],
+                        const Divider(height: 20, color: AppColors.border),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Listed Quantity',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textMuted)),
+                                const SizedBox(height: 2),
                                 Text(
-                                  'Expected: ₹${_crop.expectedPrice!.toStringAsFixed(0)} / ${_crop.quantityUnit}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.secondary,
-                                      ),
+                                  '${_crop.quantity} ${_crop.quantityUnit}',
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textPrimary),
                                 ),
                               ],
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                            if (_crop.expectedPrice != null &&
+                                _crop.expectedPrice! > 0)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text('Expected Price',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textMuted)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '₹${_crop.expectedPrice!.toStringAsFixed(0)} / ${_crop.quantityUnit}',
+                                    style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Crop Specifications Card
-                  Card(
-                    elevation: AppConstants.cardElevation,
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppConstants.borderRadius),
-                    ),
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.all(AppConstants.paddingMedium),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Crop Specifications',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
+                  // Crop Specifications Card (White)
+                  FarmCard(
+                    variant: FarmCardVariant.white,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.category_outlined,
+                                color: AppColors.primary, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Crop Specifications',
+                              style: TextStyle(
+                                  fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
-                                ),
-                          ),
-                          const Divider(height: 24),
-                          _buildDetailRow(
-                            context,
-                            icon: Icons.category,
-                            label: 'Variety',
-                            value: (_crop.variety != null && _crop.variety!.isNotEmpty)
-                                ? _crop.variety!
-                                : 'Standard / Unspecified',
-                          ),
-                          if (_crop.grade != null && _crop.grade!.isNotEmpty && _crop.grade != 'FAQ') ...[
-                            const SizedBox(height: 12),
-                            _buildDetailRow(
-                              context,
-                              icon: Icons.grade,
-                              label: 'Grade / Quality',
-                              value: _crop.grade!,
+                                  color: AppColors.textPrimary),
                             ),
                           ],
-                          const SizedBox(height: 12),
-                          _buildDetailRow(
-                            context,
-                            icon: Icons.calendar_today,
-                            label: 'Expected Harvest Date',
-                            value: formattedHarvestDate,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildDetailRow(
-                            context,
-                            icon: Icons.access_time,
-                            label: 'Listed On',
-                            value: formattedCreatedDate,
-                          ),
-                        ],
-                      ),
+                        ),
+                        const Divider(height: 20),
+                        _buildDetailRow(
+                          icon: Icons.grass,
+                          label: 'Variety',
+                          value: (_crop.variety != null &&
+                                  _crop.variety!.isNotEmpty)
+                              ? _crop.variety!
+                              : 'Standard / Desi',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildDetailRow(
+                          icon: Icons.calendar_today_outlined,
+                          label: 'Harvest / Availability Date',
+                          value: formattedHarvestDate,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildDetailRow(
+                          icon: Icons.access_time,
+                          label: 'Listed On',
+                          value: formattedCreatedDate,
+                        ),
+                      ],
                     ),
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Location Details Card
-                  Card(
-                    elevation: AppConstants.cardElevation,
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppConstants.borderRadius),
-                    ),
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.all(AppConstants.paddingMedium),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Location Details',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
+                  // Location Details Card (White)
+                  FarmCard(
+                    variant: FarmCardVariant.white,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.location_on_outlined,
+                                color: AppColors.primary, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Farm & Market Location',
+                              style: TextStyle(
+                                  fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
-                                ),
-                          ),
-                          const Divider(height: 24),
-                          _buildDetailRow(
-                            context,
-                            icon: Icons.map,
-                            label: 'State',
-                            value: _crop.state,
-                          ),
+                                  color: AppColors.textPrimary),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 20),
+                        _buildDetailRow(
+                          icon: Icons.map_outlined,
+                          label: 'State',
+                          value: _crop.state,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildDetailRow(
+                          icon: Icons.location_city_outlined,
+                          label: 'District',
+                          value: _crop.district,
+                        ),
+                        if (_crop.market != null &&
+                            _crop.market!.isNotEmpty) ...[
                           const SizedBox(height: 12),
                           _buildDetailRow(
-                            context,
-                            icon: Icons.location_city,
-                            label: 'District',
-                            value: _crop.district,
+                            icon: Icons.storefront_outlined,
+                            label: 'Market / APMC Yard',
+                            value: _crop.market!,
                           ),
-                          if (_crop.market != null &&
-                              _crop.market!.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            _buildDetailRow(
-                              context,
-                              icon: Icons.store,
-                              label: 'Market / Mandi',
-                              value: _crop.market!,
-                            ),
-                          ],
-                          if (_crop.location != null &&
-                              _crop.location!.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            _buildDetailRow(
-                              context,
-                              icon: Icons.pin_drop,
-                              label: 'Specific Location',
-                              value: _crop.location!,
-                            ),
-                          ],
                         ],
-                      ),
+                      ],
                     ),
                   ),
 
                   if (_crop.description != null &&
                       _crop.description!.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    Card(
-                      elevation: AppConstants.cardElevation,
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppConstants.borderRadius),
-                      ),
-                      child: Padding(
-                        padding:
-                            const EdgeInsets.all(AppConstants.paddingMedium),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Description',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
-                                  ),
-                            ),
-                            const Divider(height: 20),
-                            Text(
-                              _crop.description!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    height: 1.4,
-                                  ),
-                            ),
-                          ],
-                        ),
+                    FarmCard(
+                      variant: FarmCardVariant.white,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Additional Notes',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary),
+                          ),
+                          const Divider(height: 18),
+                          Text(
+                            _crop.description!,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                                height: 1.4),
+                          ),
+                        ],
                       ),
                     ),
                   ],
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                  // Primary Action: View Buyer Recommendations for this crop
+                  // Primary Action: Where Can I Sell / Buyer Recommendations
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        backgroundColor: const Color(0xFF16A34A),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppConstants.borderRadius),
-                        ),
                       ),
-                      icon: const Icon(Icons.star_outline),
-                      label: const Text('View Buyer Recommendations (Net Value)'),
+                      icon: const Icon(Icons.psychology_outlined, size: 20),
+                      label:
+                          const Text('Where Can I Sell? (AI Recommendations)'),
                       onPressed: () {
-                        context.push(AppConstants.routeFarmerRecommendations, extra: _crop.id);
+                        context.push(AppConstants.routeFarmerRecommendations,
+                            extra: _crop.id);
                       },
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
-                  // Secondary Action: View Market Prices for this commodity
+                  // Secondary Action: Matched Buyers
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppConstants.borderRadius),
-                        ),
                       ),
-                      icon: const Icon(Icons.trending_up),
-                      label: Text('View Market Prices for ${_crop.commodity}'),
+                      icon: const Icon(Icons.compare_arrows, size: 18),
+                      label: const Text('View Matched Buyers'),
                       onPressed: () {
-                        context.push(AppConstants.routeMarketPrices);
+                        context.push(AppConstants.routeFarmerMatches,
+                            extra: _crop.id);
                       },
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  if (canDelete) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side: const BorderSide(color: AppColors.error),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                AppConstants.borderRadius),
+                          ),
+                        ),
+                        icon: const Icon(Icons.delete_outline,
+                            size: 20, color: AppColors.error),
+                        label: const Text(
+                          'Delete Crop',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        onPressed: _isDeleting ? null : _confirmDelete,
+                      ),
+                    ),
+                  ],
 
-                  // Edit & Delete Action Buttons
-                  Row(
-                    children: [
-                      if (canEdit) ...[
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                    AppConstants.borderRadius),
-                              ),
-                            ),
-                            icon: const Icon(Icons.edit),
-                            label: const Text('Edit Crop'),
-                            onPressed: () async {
-                              final updated = await context.push<CropModel>(
-                                AppConstants.routeEditCrop,
-                                extra: _crop,
-                              );
-                              if (updated != null && mounted) {
-                                setState(() {
-                                  _crop = updated;
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      if (canDelete)
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.error,
-                              side: const BorderSide(color: AppColors.error),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                    AppConstants.borderRadius),
-                              ),
-                            ),
-                            icon: const Icon(Icons.delete_outline),
-                            label: const Text('Delete Crop'),
-                            onPressed: _confirmDelete,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildDetailRow(
-    BuildContext context, {
+  Widget _buildDetailRow({
     required IconData icon,
     required String label,
     required String value,
@@ -577,28 +484,26 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: AppColors.textMuted),
-        const SizedBox(width: 12),
+        Icon(icon, size: 16, color: AppColors.textMuted),
+        const SizedBox(width: 8),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
-                    ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
+          flex: 2,
+          child: Text(
+            label,
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 3,
+          child: Text(
+            value,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary),
+            textAlign: TextAlign.right,
           ),
         ),
       ],

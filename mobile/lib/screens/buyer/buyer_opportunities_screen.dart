@@ -10,7 +10,8 @@ class BuyerOpportunitiesScreen extends StatefulWidget {
   const BuyerOpportunitiesScreen({super.key});
 
   @override
-  State<BuyerOpportunitiesScreen> createState() => _BuyerOpportunitiesScreenState();
+  State<BuyerOpportunitiesScreen> createState() =>
+      _BuyerOpportunitiesScreenState();
 }
 
 class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
@@ -27,7 +28,14 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
   List<DiscoverFarmerCropModel> _discoverCrops = [];
 
   String _selectedFilter = 'ALL';
-  final List<String> _filters = ['ALL', 'PENDING', 'ACCEPTED', 'COMPLETED', 'REJECTED', 'CANCELLED'];
+  final List<String> _filters = [
+    'ALL',
+    'PENDING',
+    'ACCEPTED',
+    'COMPLETED',
+    'REJECTED',
+    'CANCELLED'
+  ];
 
   @override
   void initState() {
@@ -67,7 +75,8 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
       if (mounted && res.data != null && res.data['success'] == true) {
         final List list = res.data['data'] ?? [];
         setState(() {
-          _myOpportunities = list.map((item) => OpportunityModel.fromJson(item)).toList();
+          _myOpportunities =
+              list.map((item) => OpportunityModel.fromJson(item)).toList();
           _isLoadingMy = false;
         });
       } else {
@@ -93,16 +102,20 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
     });
 
     try {
-      final res = await _apiService.getDiscoverableFarmerCrops(page: 1, limit: 50);
+      final res =
+          await _apiService.getDiscoverableFarmerCrops(page: 1, limit: 50);
       if (mounted && res.data != null && res.data['success'] == true) {
         final List list = res.data['data'] ?? [];
         setState(() {
-          _discoverCrops = list.map((item) => DiscoverFarmerCropModel.fromJson(item)).toList();
+          _discoverCrops = list
+              .map((item) => DiscoverFarmerCropModel.fromJson(item))
+              .toList();
           _isLoadingDiscover = false;
         });
       } else {
         setState(() {
-          _errorDiscover = res.data?['message'] ?? 'Unable to load farmer crops.';
+          _errorDiscover =
+              res.data?['message'] ?? 'Unable to load farmer crops.';
           _isLoadingDiscover = false;
         });
       }
@@ -168,7 +181,10 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
             SizedBox(width: 4),
             Text(
               'New Farmer',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF92400E)),
             ),
           ],
         ),
@@ -189,7 +205,10 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
           const SizedBox(width: 4),
           Text(
             '${rating.toStringAsFixed(1)} ($count)',
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF92400E)),
           ),
         ],
       ),
@@ -197,7 +216,8 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
   }
 
   void _showExpressInterestDialog(DiscoverFarmerCropModel crop) {
-    final priceController = TextEditingController(text: crop.expectedPrice.toStringAsFixed(0));
+    final priceController =
+        TextEditingController(text: crop.expectedPrice.toStringAsFixed(0));
     final notesController = TextEditingController();
     bool isSubmitting = false;
     String? dialogError;
@@ -214,18 +234,23 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Farmer: ${crop.farmerName}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text('Farmer: ${crop.farmerName}',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Text('Available: ${crop.quantity} ${crop.quantityUnit}'),
-                    Text('Asking Price: ₹${crop.expectedPrice.toStringAsFixed(0)} / ${crop.quantityUnit}'),
+                    Text(
+                        'Asking Price: ₹${crop.expectedPrice.toStringAsFixed(0)} / ${crop.quantityUnit}'),
                     const SizedBox(height: 12),
                     if (dialogError != null) ...[
-                      Text(dialogError!, style: const TextStyle(color: AppColors.error, fontSize: 12)),
+                      Text(dialogError!,
+                          style: const TextStyle(
+                              color: AppColors.error, fontSize: 12)),
                       const SizedBox(height: 8),
                     ],
                     TextField(
                       controller: priceController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
                       decoration: const InputDecoration(
                         labelText: 'Your Offered Price (₹) *',
                         prefixText: '₹ ',
@@ -257,9 +282,11 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                   onPressed: isSubmitting
                       ? null
                       : () async {
-                          final offered = double.tryParse(priceController.text.trim());
+                          final offered =
+                              double.tryParse(priceController.text.trim());
                           if (offered == null || offered <= 0) {
-                            setModalState(() => dialogError = 'Please enter a valid offered price.');
+                            setModalState(() => dialogError =
+                                'Please enter a valid offered price.');
                             return;
                           }
 
@@ -275,12 +302,14 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                               notes: notesController.text.trim(),
                             );
 
-                            if (res.data != null && res.data['success'] == true) {
+                            if (res.data != null &&
+                                res.data['success'] == true) {
                               if (context.mounted) {
                                 Navigator.pop(ctx);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Interest expressed successfully! Farmer has been notified.'),
+                                    content: Text(
+                                        'Interest expressed successfully! Farmer has been notified.'),
                                     backgroundColor: AppColors.success,
                                   ),
                                 );
@@ -290,18 +319,24 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                             } else {
                               setModalState(() {
                                 isSubmitting = false;
-                                dialogError = res.data?['message'] ?? 'Unable to express interest.';
+                                dialogError = res.data?['message'] ??
+                                    'Unable to express interest.';
                               });
                             }
                           } catch (e) {
                             setModalState(() {
                               isSubmitting = false;
-                              dialogError = e.toString().replaceAll('Exception: ', '');
+                              dialogError =
+                                  e.toString().replaceAll('Exception: ', '');
                             });
                           }
                         },
                   child: isSubmitting
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
                       : const Text('Express Interest'),
                 ),
               ],
@@ -373,8 +408,11 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                       filter == 'ALL' ? 'All Opportunities' : filter,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? AppColors.secondary : AppColors.textSecondary,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? AppColors.secondary
+                            : AppColors.textSecondary,
                       ),
                     ),
                     selected: isSelected,
@@ -408,7 +446,8 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
 
   Widget _buildOpportunitiesList() {
     if (_isLoadingMy) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.secondary));
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.secondary));
     }
 
     if (_errorMy != null) {
@@ -420,13 +459,17 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
             children: [
               const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
-              Text(_errorMy!, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+              Text(_errorMy!,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: _fetchMyOpportunities,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: Colors.white),
               ),
             ],
           ),
@@ -441,7 +484,8 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.handshake_outlined, size: 64, color: AppColors.textMuted),
+              const Icon(Icons.handshake_outlined,
+                  size: 64, color: AppColors.textMuted),
               const SizedBox(height: 16),
               Text(
                 _selectedFilter == 'ALL'
@@ -486,7 +530,8 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: AppConstants.cardElevation,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
           child: InkWell(
             onTap: () async {
               final refreshed = await context.push(
@@ -508,11 +553,15 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                       Expanded(
                         child: Text(
                           op.commodity,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: _getStatusBgColor(op.normalizedStatus),
                           borderRadius: BorderRadius.circular(12),
@@ -535,20 +584,29 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: isInitiator ? const Color(0xFFEFF6FF) : const Color(0xFFF0FDF4),
+                          color: isInitiator
+                              ? const Color(0xFFEFF6FF)
+                              : const Color(0xFFF0FDF4),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: isInitiator ? const Color(0xFFBFDBFE) : const Color(0xFFBBF7D0),
+                            color: isInitiator
+                                ? const Color(0xFFBFDBFE)
+                                : const Color(0xFFBBF7D0),
                           ),
                         ),
                         child: Text(
-                          isInitiator ? 'Initiated by You' : 'Initiated by Farmer',
+                          isInitiator
+                              ? 'Initiated by You'
+                              : 'Initiated by Farmer',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: isInitiator ? const Color(0xFF1D4ED8) : const Color(0xFF15803D),
+                            color: isInitiator
+                                ? const Color(0xFF1D4ED8)
+                                : const Color(0xFF15803D),
                           ),
                         ),
                       ),
@@ -556,7 +614,10 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                       Expanded(
                         child: Text(
                           'Farmer: ${op.farmerName}',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -569,10 +630,14 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Quantity: ${op.quantity} ${op.quantityUnit}', style: const TextStyle(fontSize: 13)),
+                      Text('Quantity: ${op.quantity} ${op.quantityUnit}',
+                          style: const TextStyle(fontSize: 13)),
                       Text(
                         'Offered: ₹${op.offeredPrice.toStringAsFixed(0)} / ${op.quantityUnit}',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.secondary),
                       ),
                     ],
                   ),
@@ -586,11 +651,13 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                       if (op.distanceKm != null)
                         Row(
                           children: [
-                            const Icon(Icons.near_me, size: 14, color: AppColors.secondary),
+                            const Icon(Icons.near_me,
+                                size: 14, color: AppColors.secondary),
                             const SizedBox(width: 4),
                             Text(
                               '${op.distanceKm!.toStringAsFixed(1)} km away',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppColors.textSecondary),
                             ),
                           ],
                         )
@@ -600,10 +667,14 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                         children: [
                           Text(
                             'View Details',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.secondary),
                           ),
                           SizedBox(width: 2),
-                          Icon(Icons.chevron_right, size: 16, color: AppColors.secondary),
+                          Icon(Icons.chevron_right,
+                              size: 16, color: AppColors.secondary),
                         ],
                       ),
                     ],
@@ -619,7 +690,8 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
 
   Widget _buildDiscoverCropsTab() {
     if (_isLoadingDiscover) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.secondary));
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.secondary));
     }
 
     if (_errorDiscover != null) {
@@ -631,13 +703,16 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
             children: [
               const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
-              Text(_errorDiscover!, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(_errorDiscover!,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: _fetchDiscoverCrops,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: Colors.white),
               ),
             ],
           ),
@@ -675,7 +750,8 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
             elevation: AppConstants.cardElevation,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
             child: Padding(
               padding: const EdgeInsets.all(AppConstants.paddingMedium),
               child: Column(
@@ -687,7 +763,10 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                       Expanded(
                         child: Text(
                           crop.commodity,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
                       Text(
@@ -705,25 +784,34 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                     children: [
                       Text(
                         'Farmer: ${crop.farmerName}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary),
                       ),
                       const SizedBox(width: 8),
-                      _buildRatingBadge(crop.farmerRating, crop.farmerRatingCount, crop.farmerIsNew),
+                      _buildRatingBadge(crop.farmerRating,
+                          crop.farmerRatingCount, crop.farmerIsNew),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Available: ${crop.quantity} ${crop.quantityUnit} • Variety: ${crop.variety}',
-                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                      const Icon(Icons.location_on_outlined,
+                          size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
-                        crop.market.isNotEmpty ? '${crop.market}, ${crop.district}' : crop.district,
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        crop.market.isNotEmpty
+                            ? '${crop.market}, ${crop.district}'
+                            : crop.district,
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
@@ -732,15 +820,18 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                     alignment: Alignment.centerRight,
                     child: crop.userInterestStatus != null
                         ? Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _getStatusBgColor(crop.userInterestStatus!),
+                              color:
+                                  _getStatusBgColor(crop.userInterestStatus!),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               'Interest: ${crop.userInterestStatus!}',
                               style: TextStyle(
-                                color: _getStatusTextColor(crop.userInterestStatus!),
+                                color: _getStatusTextColor(
+                                    crop.userInterestStatus!),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                               ),
@@ -750,12 +841,16 @@ class _BuyerOpportunitiesScreenState extends State<BuyerOpportunitiesScreen>
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.secondary,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
                             ),
                             onPressed: () => _showExpressInterestDialog(crop),
-                            icon: const Icon(Icons.thumb_up_alt_outlined, size: 16),
-                            label: const Text('Express Interest', style: TextStyle(fontWeight: FontWeight.bold)),
+                            icon: const Icon(Icons.thumb_up_alt_outlined,
+                                size: 16),
+                            label: const Text('Express Interest',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
                   ),
                 ],

@@ -8,6 +8,8 @@ import '../../constants/app_constants.dart';
 import '../../models/deal_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/deal_service.dart';
+import '../../services/location_service.dart';
+import '../../widgets/farm_empty_state.dart';
 
 class DealDetailScreen extends StatefulWidget {
   final String dealId;
@@ -30,6 +32,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   double _userRating = 5.0;
   final TextEditingController _feedbackController = TextEditingController();
   bool _isSubmittingRating = false;
+
+  // Agreement confirmation state
+  bool _agreementTermsChecked = false;
+  bool _isConfirmingAgreement = false;
 
   @override
   void initState() {
@@ -67,21 +73,62 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     }
   }
 
-  void _openGoogleMaps(String? url, double? lat, double? lng) async {
-    String? targetUrl = url;
-    if ((targetUrl == null || targetUrl.isEmpty) && lat != null && lng != null && lat != 0 && lng != 0) {
-      targetUrl = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+  Future<void> _handleConfirmAgreement() async {
+    if (!_agreementTermsChecked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Please check the box to agree to the Terms & Conditions.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
     }
 
-    if (targetUrl != null && targetUrl.isNotEmpty) {
-      final uri = Uri.parse(targetUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        return;
+    setState(() => _isConfirmingAgreement = true);
+    try {
+      final result = await _dealService.acceptDealAgreement(
+        widget.dealId,
+        agreeToTerms: true,
+        agreementVersion: _deal?.agreementVersion ?? 1,
+      );
+      if (mounted) {
+        setState(() => _isConfirmingAgreement = false);
+        final bool bothAccepted = result['bothAccepted'] == true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(bothAccepted
+                ? 'Deal Agreement Confirmed! Both parties have confirmed.'
+                : 'Agreement confirmed! Waiting for counterparty confirmation.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        _fetchDeal();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isConfirmingAgreement = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     }
+  }
 
-    if (mounted) {
+  void _openGoogleMaps(String? url, double? lat, double? lng,
+      {String? address, String? label}) async {
+    final success = await LocationService.launchGoogleMaps(
+      latitude: lat,
+      longitude: lng,
+      address: address,
+      mapsUrl: url,
+      label: label,
+    );
+
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to launch Google Maps.')),
       );
@@ -118,23 +165,34 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               children: [
                 const Text(
                   'Record that you have initiated payment externally to the counterparty.',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style:
+                      TextStyle(fontSize: 13, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 12),
-                const Text('Payment Method:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const Text('Payment Method:',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<String>(
                   initialValue: paymentMethod,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'Direct UPI / Bank Transfer', child: Text('Direct UPI / Bank Transfer')),
-                    DropdownMenuItem(value: 'Cash on Delivery / Pickup', child: Text('Cash on Delivery / Pickup')),
-                    DropdownMenuItem(value: 'NEFT / RTGS / IMPS', child: Text('NEFT / RTGS / IMPS')),
-                    DropdownMenuItem(value: 'Cheque / Draft', child: Text('Cheque / Draft')),
+                    DropdownMenuItem(
+                        value: 'Direct UPI / Bank Transfer',
+                        child: Text('Direct UPI / Bank Transfer')),
+                    DropdownMenuItem(
+                        value: 'Cash on Delivery / Pickup',
+                        child: Text('Cash on Delivery / Pickup')),
+                    DropdownMenuItem(
+                        value: 'NEFT / RTGS / IMPS',
+                        child: Text('NEFT / RTGS / IMPS')),
+                    DropdownMenuItem(
+                        value: 'Cheque / Draft', child: Text('Cheque / Draft')),
                   ],
                   onChanged: (val) {
                     if (val != null) setModalState(() => paymentMethod = val);
@@ -154,9 +212,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Report Payment'),
             ),
@@ -181,7 +243,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Payment reported. Counterparty has been notified to verify and confirm receipt.'),
+            content: Text(
+                'Payment reported. Counterparty has been notified to verify and confirm receipt.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -190,7 +253,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -206,9 +271,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           'Once confirmed, the deal will be recorded as paid.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Confirm Receipt'),
           ),
@@ -237,7 +306,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -271,13 +342,18 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white),
             onPressed: () {
               if (reasonController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Please enter a dispute reason.')),
+                  const SnackBar(
+                      content: Text('Please enter a dispute reason.')),
                 );
                 return;
               }
@@ -304,7 +380,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Payment dispute recorded. Both parties are notified to resolve directly.'),
+            content: Text(
+                'Payment dispute recorded. Both parties are notified to resolve directly.'),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -313,7 +390,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -322,7 +401,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   Future<void> _handleUpdateStatus(String newStatus) async {
     setState(() => _isProcessing = true);
     try {
-      final updated = await _dealService.updateDealStatus(widget.dealId, newStatus);
+      final updated =
+          await _dealService.updateDealStatus(widget.dealId, newStatus);
       if (mounted) {
         setState(() {
           _deal = updated;
@@ -339,7 +419,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -354,9 +436,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           'Mark this deal as DELIVERED. This indicates the harvest has safely reached the delivery destination.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Confirm Delivered'),
           ),
@@ -376,7 +462,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Deal marked as Delivered! Ratings are now unlocked.'),
+            content:
+                Text('Deal marked as Delivered! Ratings are now unlocked.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -385,7 +472,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -419,13 +508,18 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep Deal')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Keep Deal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white),
             onPressed: () {
               if (reasonController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Please enter a cancellation reason.')),
+                  const SnackBar(
+                      content: Text('Please enter a cancellation reason.')),
                 );
                 return;
               }
@@ -441,7 +535,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
     setState(() => _isProcessing = true);
     try {
-      final updated = await _dealService.cancelDeal(widget.dealId, reason: reasonController.text.trim());
+      final updated = await _dealService.cancelDeal(widget.dealId,
+          reason: reasonController.text.trim());
       if (mounted) {
         setState(() {
           _deal = updated;
@@ -455,7 +550,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -472,7 +569,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Thank you! Your rating and feedback have been recorded.'),
+            content:
+                Text('Thank you! Your rating and feedback have been recorded.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -481,7 +579,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -491,8 +591,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   Future<void> _handleEditLogistics() async {
     if (_deal == null) return;
-    final transportCostController = TextEditingController(text: _deal!.transportCost > 0 ? _deal!.transportCost.toStringAsFixed(0) : '');
-    final otherCostsController = TextEditingController(text: _deal!.otherCosts > 0 ? _deal!.otherCosts.toStringAsFixed(0) : '');
+    final transportCostController = TextEditingController(
+        text: _deal!.transportCost > 0
+            ? _deal!.transportCost.toStringAsFixed(0)
+            : '');
+    final otherCostsController = TextEditingController(
+        text:
+            _deal!.otherCosts > 0 ? _deal!.otherCosts.toStringAsFixed(0) : '');
     bool transportReq = _deal!.transportRequired;
     String transportType = _deal!.transportType;
 
@@ -508,24 +613,41 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               children: [
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Transport Required', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  title: const Text('Transport Required',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   value: transportReq,
                   onChanged: (val) => setModalState(() => transportReq = val),
                 ),
                 if (transportReq) ...[
                   const SizedBox(height: 8),
-                  const Text('Transport Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text('Transport Type',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 4),
                   DropdownButtonFormField<String>(
                     initialValue: transportType,
                     isExpanded: true,
-                    decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
+                    decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
                     items: const [
-                      DropdownMenuItem(value: 'Standard Road Transport', child: Text('Standard Road Transport')),
-                      DropdownMenuItem(value: 'Mini Truck / Pickup (Bolero)', child: Text('Mini Truck / Pickup (Bolero)')),
-                      DropdownMenuItem(value: 'Heavy Commercial Truck', child: Text('Heavy Commercial Truck')),
-                      DropdownMenuItem(value: 'Tractor Trolley', child: Text('Tractor Trolley')),
-                      DropdownMenuItem(value: 'Self Arrangement / Direct Pickup', child: Text('Self Arrangement / Direct Pickup')),
+                      DropdownMenuItem(
+                          value: 'Standard Road Transport',
+                          child: Text('Standard Road Transport')),
+                      DropdownMenuItem(
+                          value: 'Mini Truck / Pickup (Bolero)',
+                          child: Text('Mini Truck / Pickup (Bolero)')),
+                      DropdownMenuItem(
+                          value: 'Heavy Commercial Truck',
+                          child: Text('Heavy Commercial Truck')),
+                      DropdownMenuItem(
+                          value: 'Tractor Trolley',
+                          child: Text('Tractor Trolley')),
+                      DropdownMenuItem(
+                          value: 'Self Arrangement / Direct Pickup',
+                          child: Text('Self Arrangement / Direct Pickup')),
                     ],
                     onChanged: (val) {
                       if (val != null) setModalState(() => transportType = val);
@@ -554,9 +676,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Save Logistics'),
             ),
@@ -585,14 +711,18 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           _isProcessing = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logistics and net return updated!'), backgroundColor: AppColors.success),
+          const SnackBar(
+              content: Text('Logistics and net return updated!'),
+              backgroundColor: AppColors.success),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -642,7 +772,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   String _formatCurrency(double val) {
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format =
+        NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
     return format.format(val);
   }
 
@@ -673,28 +804,37 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                        const SizedBox(height: 12),
-                        Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 15)),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _fetchDeal,
-                          child: const Text('Try Again'),
-                        ),
-                      ],
+                    child: FarmEmptyState(
+                      icon: Icons.error_outline,
+                      title: 'Unable to Load Deal',
+                      message: _errorMessage!,
+                      actionLabel: 'Try Again',
+                      actionIcon: Icons.refresh,
+                      onAction: _fetchDeal,
                     ),
                   ),
                 )
               : deal == null
-                  ? const Center(child: Text('Deal not found'))
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: FarmEmptyState(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'Deal not found',
+                          message:
+                              'The requested deal details could not be found or may have been removed.',
+                          actionLabel: 'Go Back',
+                          actionIcon: Icons.arrow_back,
+                          onAction: () => context.pop(),
+                        ),
+                      ),
+                    )
                   : RefreshIndicator(
                       onRefresh: _fetchDeal,
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                        padding:
+                            const EdgeInsets.all(AppConstants.paddingMedium),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -723,7 +863,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                             const SizedBox(height: 16),
 
                             // 6. External Payment Tracking (Phase 10)
-                            _buildPaymentStatusCard(deal, isFarmer, currentUserId),
+                            _buildPaymentStatusCard(
+                                deal, isFarmer, currentUserId),
                             const SizedBox(height: 16),
 
                             // 7. Ratings & Feedback (Phase 12)
@@ -775,22 +916,28 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ),
               Text(
                 DateFormat('dd MMM yyyy').format(deal.agreedDate),
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
               ),
             ],
           ),
-          if (deal.cancellationReason != null && deal.cancellationReason!.isNotEmpty) ...[
+          if (deal.cancellationReason != null &&
+              deal.cancellationReason!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                border:
+                    Border.all(color: AppColors.error.withValues(alpha: 0.3)),
               ),
               child: Text(
                 'Cancellation Reason: ${deal.cancellationReason}',
-                style: const TextStyle(fontSize: 13, color: AppColors.error, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w500),
               ),
             ),
           ],
@@ -799,138 +946,571 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     );
   }
 
-  // AGREEMENT SUMMARY CARD
+  // OFFICIAL MUTUAL DEAL AGREEMENT CARD
   Widget _buildAgreementSummaryCard(DealModel deal, bool isFarmer) {
     final bool isConfirmed = deal.isAgreementConfirmed;
-    final bool currentUserAccepted = isFarmer ? deal.farmerAccepted : deal.buyerAccepted;
+    final bool currentUserAccepted =
+        isFarmer ? deal.farmerAccepted : deal.buyerAccepted;
+    final String agreementStatusText = deal.agreementStatusDisplayText;
 
     return Card(
       elevation: AppConstants.cardElevation,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
         side: BorderSide(
-          color: isConfirmed ? Colors.green.shade400 : Colors.amber.shade500,
-          width: 1.2,
+          color:
+              isConfirmed ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
+          width: isConfirmed ? 1.5 : 1.2,
         ),
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: isConfirmed ? Colors.green.shade50.withValues(alpha: 0.35) : Colors.amber.shade50.withValues(alpha: 0.35),
+          color:
+              isConfirmed ? const Color(0xFFF0FDF4) : const Color(0xFFFFFBEB),
           borderRadius: BorderRadius.circular(AppConstants.borderRadius),
         ),
         padding: const EdgeInsets.all(AppConstants.paddingMedium),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 1. Header with Version & Mutual Status Badge
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
-                  isConfirmed ? Icons.verified_user : Icons.gavel,
-                  color: isConfirmed ? AppColors.success : const Color(0xFFD97706),
-                  size: 20,
+                  isConfirmed ? Icons.verified_user : Icons.gavel_rounded,
+                  color: isConfirmed
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFFD97706),
+                  size: 22,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    'OFFICIAL DEAL AGREEMENT (v${deal.agreementVersion})',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: isConfirmed ? Colors.green.shade900 : const Color(0xFF92400E),
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'OFFICIAL DEAL AGREEMENT (v${deal.agreementVersion})',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.3,
+                          color: isConfirmed
+                              ? const Color(0xFF14532D)
+                              : const Color(0xFF78350F),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'FarmFlow Mutual Digital Contract',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isConfirmed
+                              ? const Color(0xFF15803D)
+                              : const Color(0xFF92400E),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isConfirmed ? Colors.green.shade100 : Colors.amber.shade100,
+                    color: isConfirmed
+                        ? const Color(0xFFDCFCE7)
+                        : const Color(0xFFFEF3C7),
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isConfirmed
+                          ? const Color(0xFF86EFAC)
+                          : const Color(0xFFFDE68A),
+                    ),
                   ),
                   child: Text(
-                    deal.agreementStatus.replaceAll('_', ' '),
+                    agreementStatusText,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: isConfirmed ? Colors.green.shade800 : const Color(0xFF92400E),
+                      color: isConfirmed
+                          ? const Color(0xFF15803D)
+                          : const Color(0xFFB45309),
                     ),
                   ),
                 ),
               ],
             ),
-            const Divider(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Icon(
-                        deal.farmerAccepted ? Icons.check_circle : Icons.hourglass_top,
-                        size: 16,
-                        color: deal.farmerAccepted ? Colors.green : Colors.orange,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Farmer: ${deal.farmerAccepted ? 'Accepted' : 'Pending'}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: deal.farmerAccepted ? Colors.green.shade900 : Colors.orange.shade900,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Icon(
-                        deal.buyerAccepted ? Icons.check_circle : Icons.hourglass_top,
-                        size: 16,
-                        color: deal.buyerAccepted ? Colors.green : Colors.orange,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Buyer: ${deal.buyerAccepted ? 'Accepted' : 'Pending'}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: deal.buyerAccepted ? Colors.green.shade900 : Colors.orange.shade900,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: isConfirmed ? Colors.green.shade800 : AppColors.primary,
-                  side: BorderSide(color: isConfirmed ? Colors.green.shade400 : AppColors.primary),
-                ),
-                icon: const Icon(Icons.article_outlined, size: 18),
-                label: Text(
-                  isConfirmed
-                      ? 'View Signed Agreement'
-                      : (currentUserAccepted
-                          ? 'View Agreement (Waiting Counterparty)'
-                          : 'Review & Sign Deal Agreement'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                onPressed: () async {
-                  await context.push(AppConstants.routeDealAgreement, extra: deal.id);
-                  _fetchDeal();
-                },
+            const Divider(height: 22),
+
+            // 2. Agreed Deal Parameters
+            Text(
+              'Agreed Deal Parameters',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: isConfirmed
+                    ? const Color(0xFF166534)
+                    : const Color(0xFF92400E),
               ),
             ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isConfirmed
+                      ? const Color(0xFFBBF7D0)
+                      : const Color(0xFFFDE68A),
+                ),
+              ),
+              child: Column(
+                children: [
+                  _buildAgreementParamRow('Farmer Name',
+                      deal.farmerName.isNotEmpty ? deal.farmerName : 'Farmer'),
+                  _buildAgreementParamRow('Buyer Name',
+                      deal.buyerName.isNotEmpty ? deal.buyerName : 'Buyer'),
+                  _buildAgreementParamRow('Crop', deal.crop),
+                  _buildAgreementParamRow('Quantity',
+                      '${deal.quantity.toStringAsFixed(deal.quantity % 1 == 0 ? 0 : 2)} Quintal'),
+                  _buildAgreementParamRow('Agreed Selling Price',
+                      '₹${deal.agreedPrice.toStringAsFixed(0)} / Quintal'),
+                  _buildAgreementParamRow(
+                      'Total Deal Value', _formatCurrency(deal.totalPrice),
+                      isHighlighted: true),
+                  _buildAgreementParamRow(
+                    'Pickup / Delivery Location',
+                    '${deal.pickupLocation.isNotEmpty ? deal.pickupLocation : 'Farm Pickup'} → ${deal.deliveryLocation.isNotEmpty ? deal.deliveryLocation : 'Buyer Delivery'}',
+                  ),
+                  _buildAgreementParamRow('Deal Date',
+                      DateFormat('dd MMM yyyy').format(deal.agreedDate)),
+                  _buildAgreementParamRow(
+                      'Current Deal Status', deal.status.replaceAll('_', ' '),
+                      isLast: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 3. Terms & Conditions Section
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isConfirmed
+                      ? const Color(0xFFBBF7D0)
+                      : const Color(0xFFFDE68A),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.shield_outlined,
+                          size: 16,
+                          color: isConfirmed
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFFD97706)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Terms & Conditions',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: isConfirmed
+                              ? const Color(0xFF166534)
+                              : const Color(0xFF92400E),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _buildAgreementTermItem(
+                      'Both parties mutually agree to the displayed crop, quantity, price and terms.'),
+                  _buildAgreementTermItem(
+                      'Both parties are responsible for fulfilling their agreed obligations.'),
+                  _buildAgreementTermItem(
+                      'The agreement is recorded digitally in FarmFlow.'),
+                  _buildAgreementTermItem(
+                      'Any payment/delivery confirmation must be completed through the application\'s supported flow.',
+                      isLast: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 4. Mutual Confirmation Status
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isConfirmed
+                      ? const Color(0xFFBBF7D0)
+                      : const Color(0xFFFDE68A),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Mutual Confirmation Status',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.textPrimary),
+                  ),
+                  const Divider(height: 14),
+                  // Farmer row
+                  Row(
+                    children: [
+                      Icon(
+                        deal.farmerAccepted
+                            ? Icons.check_circle
+                            : Icons.hourglass_top_rounded,
+                        size: 16,
+                        color: deal.farmerAccepted
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFF97316),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Farmer: ${deal.farmerName.isNotEmpty ? deal.farmerName : 'Farmer'}',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 12),
+                            ),
+                            Text(
+                              deal.farmerAccepted
+                                  ? 'Confirmed on ${DateFormat('dd MMM yyyy, hh:mm a').format(deal.farmerAcceptedAt ?? deal.agreedDate)}'
+                                  : 'Waiting for Farmer confirmation',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: deal.farmerAccepted
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFFD97706),
+                                fontWeight: deal.farmerAccepted
+                                    ? FontWeight.w500
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: deal.farmerAccepted
+                              ? const Color(0xFFDCFCE7)
+                              : const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          deal.farmerAccepted ? 'CONFIRMED' : 'PENDING',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: deal.farmerAccepted
+                                ? const Color(0xFF15803D)
+                                : const Color(0xFFB45309),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Buyer row
+                  Row(
+                    children: [
+                      Icon(
+                        deal.buyerAccepted
+                            ? Icons.check_circle
+                            : Icons.hourglass_top_rounded,
+                        size: 16,
+                        color: deal.buyerAccepted
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFF97316),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Buyer: ${deal.buyerName.isNotEmpty ? deal.buyerName : 'Buyer'}',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 12),
+                            ),
+                            Text(
+                              deal.buyerAccepted
+                                  ? 'Confirmed on ${DateFormat('dd MMM yyyy, hh:mm a').format(deal.buyerAcceptedAt ?? deal.agreedDate)}'
+                                  : 'Waiting for Buyer confirmation',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: deal.buyerAccepted
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFFD97706),
+                                fontWeight: deal.buyerAccepted
+                                    ? FontWeight.w500
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: deal.buyerAccepted
+                              ? const Color(0xFFDCFCE7)
+                              : const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          deal.buyerAccepted ? 'CONFIRMED' : 'PENDING',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: deal.buyerAccepted
+                                ? const Color(0xFF15803D)
+                                : const Color(0xFFB45309),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 5. Action Section: Inline Confirmation Checkbox / Button or View Button
+            if (isConfirmed) ...[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF86EFAC)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.verified, color: Color(0xFF16A34A), size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Deal Agreement Confirmed by both parties.',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: Color(0xFF15803D)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF166534),
+                    side: const BorderSide(color: Color(0xFF86EFAC)),
+                  ),
+                  icon: const Icon(Icons.article_outlined, size: 18),
+                  label: const Text(
+                    'View Full Agreement Document',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  onPressed: () async {
+                    await context.push(AppConstants.routeDealAgreement,
+                        extra: deal.id);
+                    _fetchDeal();
+                  },
+                ),
+              ),
+            ] else if (currentUserAccepted) ...[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline,
+                        color: Color(0xFFD97706), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'You have confirmed this agreement. Waiting for ${isFarmer ? 'Buyer' : 'Farmer'} confirmation.',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            color: Color(0xFF92400E)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                  ),
+                  icon: const Icon(Icons.article_outlined, size: 18),
+                  label: const Text(
+                    'View Full Agreement Document',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  onPressed: () async {
+                    await context.push(AppConstants.routeDealAgreement,
+                        extra: deal.id);
+                    _fetchDeal();
+                  },
+                ),
+              ),
+            ] else ...[
+              // Current user has not confirmed yet
+              CheckboxListTile(
+                value: _agreementTermsChecked,
+                activeColor: AppColors.primary,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text(
+                  'I agree to the Terms & Conditions and deal specifications above.',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                onChanged: _isConfirmingAgreement
+                    ? null
+                    : (val) {
+                        setState(() {
+                          _agreementTermsChecked = val ?? false;
+                        });
+                      },
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: (_agreementTermsChecked && !_isConfirmingAgreement)
+                      ? _handleConfirmAgreement
+                      : null,
+                  icon: _isConfirmingAgreement
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.handshake_outlined, size: 18),
+                  label: Text(
+                    _isConfirmingAgreement
+                        ? 'Confirming Deal Agreement...'
+                        : 'Confirm Deal Agreement',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppConstants.borderRadius)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                  ),
+                  icon: const Icon(Icons.article_outlined, size: 18),
+                  label: const Text(
+                    'Review & Sign Full Agreement',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  onPressed: () async {
+                    await context.push(AppConstants.routeDealAgreement,
+                        extra: deal.id);
+                    _fetchDeal();
+                  },
+                ),
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAgreementParamRow(String label, String value,
+      {bool isHighlighted = false, bool isLast = false}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w600,
+                color:
+                    isHighlighted ? AppColors.primary : AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAgreementTermItem(String text, {bool isLast = false}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: AppColors.primary)),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                  fontSize: 11, height: 1.35, color: Color(0xFF334155)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -939,7 +1519,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   Widget _buildCommodityCard(DealModel deal) {
     return Card(
       elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.paddingMedium),
         child: Column(
@@ -950,31 +1531,42 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               children: [
                 Text(
                   deal.crop,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${deal.quantity.toStringAsFixed(0)} ${deal.quantityUnit}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                        fontSize: 13),
                   ),
                 ),
               ],
             ),
             if (deal.variety.isNotEmpty) ...[
               const SizedBox(height: 2),
-              Text('Variety: ${deal.variety}', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              Text('Variety: ${deal.variety}',
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary)),
             ],
             const Divider(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildTermItem('Agreed Price', '${_formatCurrency(deal.agreedPrice)} / ${deal.agreedPriceUnit}'),
-                _buildTermItem('Gross Value', _formatCurrency(deal.totalAmount), isBold: true),
+                _buildTermItem('Agreed Price',
+                    '${_formatCurrency(deal.agreedPrice)} / ${deal.agreedPriceUnit}'),
+                _buildTermItem('Gross Value', _formatCurrency(deal.totalAmount),
+                    isBold: true),
               ],
             ),
           ],
@@ -987,7 +1579,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        Text(label,
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
         const SizedBox(height: 2),
         Text(
           value,
@@ -1007,12 +1601,16 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final phone = isFarmer ? deal.buyerPhone : deal.farmerPhone;
     final location = isFarmer ? deal.buyerLocation : deal.farmerLocation;
     final rating = isFarmer ? deal.buyerRating : deal.farmerRating;
-    final ratingCount = isFarmer ? deal.buyerRatingCount : deal.farmerRatingCount;
-    final business = isFarmer && deal.buyerBusinessName.isNotEmpty ? deal.buyerBusinessName : null;
+    final ratingCount =
+        isFarmer ? deal.buyerRatingCount : deal.farmerRatingCount;
+    final business = isFarmer && deal.buyerBusinessName.isNotEmpty
+        ? deal.buyerBusinessName
+        : null;
 
     return Card(
       elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.paddingMedium),
         child: Column(
@@ -1020,13 +1618,17 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           children: [
             Text(
               isFarmer ? 'Buyer Information' : 'Farmer Information',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textSecondary),
             ),
             const SizedBox(height: 10),
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: isFarmer ? Colors.indigo.shade50 : Colors.green.shade50,
+                  backgroundColor:
+                      isFarmer ? Colors.indigo.shade50 : Colors.green.shade50,
                   foregroundColor: isFarmer ? Colors.indigo : Colors.green,
                   child: Icon(isFarmer ? Icons.store : Icons.agriculture),
                 ),
@@ -1035,23 +1637,35 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                      if (business != null) Text(business, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                      Text(name,
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold)),
+                      if (business != null)
+                        Text(business,
+                            style: const TextStyle(
+                                fontSize: 13, color: AppColors.textSecondary)),
                       if (rating != null && rating > 0)
                         Row(
                           children: [
-                            const Icon(Icons.star, size: 14, color: Color(0xFFD97706)),
+                            const Icon(Icons.star,
+                                size: 14, color: Color(0xFFD97706)),
                             const SizedBox(width: 2),
                             Text(
                               '${rating.toStringAsFixed(1)} ($ratingCount ${ratingCount == 1 ? 'deal' : 'deals'})',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFD97706)),
                             ),
                           ],
                         )
                       else
                         Text(
-                          isFarmer ? deal.buyerRatingLabel : deal.farmerRatingLabel,
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          isFarmer
+                              ? deal.buyerRatingLabel
+                              : deal.farmerRatingLabel,
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
                         ),
                     ],
                   ),
@@ -1067,10 +1681,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                  const Icon(Icons.location_on_outlined,
+                      size: 14, color: AppColors.textSecondary),
                   const SizedBox(width: 4),
                   Expanded(
-                    child: Text(location, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    child: Text(location,
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary)),
                   ),
                 ],
               ),
@@ -1085,7 +1702,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   Widget _buildFinancialsCard(DealModel deal, bool isFarmer) {
     return Card(
       elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.paddingMedium),
         child: Column(
@@ -1096,34 +1714,54 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               children: [
                 Text(
                   isFarmer ? 'Estimated Net Return' : 'Estimated Total Cost',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.edit_note, size: 20, color: AppColors.primary),
+                  icon: const Icon(Icons.edit_note,
+                      size: 20, color: AppColors.primary),
                   tooltip: 'Update Costs',
                   onPressed: _handleEditLogistics,
                 ),
               ],
             ),
             const Divider(height: 12),
-            _buildCostRow('Gross Deal Value', _formatCurrency(deal.estimatedGrossAmount)),
+            _buildCostRow(
+                'Gross Deal Value', _formatCurrency(deal.estimatedGrossAmount)),
             _buildCostRow(
               'Estimated Transport',
-              deal.estimatedTransportCost > 0 ? (isFarmer ? '- ${_formatCurrency(deal.estimatedTransportCost)}' : '+ ${_formatCurrency(deal.estimatedTransportCost)}') : '₹0',
-              color: isFarmer && deal.estimatedTransportCost > 0 ? AppColors.error : null,
+              deal.estimatedTransportCost > 0
+                  ? (isFarmer
+                      ? '- ${_formatCurrency(deal.estimatedTransportCost)}'
+                      : '+ ${_formatCurrency(deal.estimatedTransportCost)}')
+                  : '₹0',
+              color: isFarmer && deal.estimatedTransportCost > 0
+                  ? AppColors.error
+                  : null,
             ),
             _buildCostRow(
               'Other Costs (Loading/Packaging)',
-              deal.estimatedOtherCosts > 0 ? (isFarmer ? '- ${_formatCurrency(deal.estimatedOtherCosts)}' : '+ ${_formatCurrency(deal.estimatedOtherCosts)}') : '₹0',
-              color: isFarmer && deal.estimatedOtherCosts > 0 ? AppColors.error : null,
+              deal.estimatedOtherCosts > 0
+                  ? (isFarmer
+                      ? '- ${_formatCurrency(deal.estimatedOtherCosts)}'
+                      : '+ ${_formatCurrency(deal.estimatedOtherCosts)}')
+                  : '₹0',
+              color: isFarmer && deal.estimatedOtherCosts > 0
+                  ? AppColors.error
+                  : null,
             ),
             const Divider(height: 16),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: isFarmer ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF),
+                color: isFarmer
+                    ? const Color(0xFFECFDF5)
+                    : const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isFarmer ? const Color(0xFFA7F3D0) : const Color(0xFFBFDBFE)),
+                border: Border.all(
+                    color: isFarmer
+                        ? const Color(0xFFA7F3D0)
+                        : const Color(0xFFBFDBFE)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1133,15 +1771,21 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
-                      color: isFarmer ? const Color(0xFF065F46) : const Color(0xFF1E40AF),
+                      color: isFarmer
+                          ? const Color(0xFF065F46)
+                          : const Color(0xFF1E40AF),
                     ),
                   ),
                   Text(
-                    _formatCurrency(isFarmer ? deal.estimatedNetReturn : deal.estimatedTotalBuyerCost),
+                    _formatCurrency(isFarmer
+                        ? deal.estimatedNetReturn
+                        : deal.estimatedTotalBuyerCost),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 17,
-                      color: isFarmer ? const Color(0xFF065F46) : const Color(0xFF1E40AF),
+                      color: isFarmer
+                          ? const Color(0xFF065F46)
+                          : const Color(0xFF1E40AF),
                     ),
                   ),
                 ],
@@ -1151,7 +1795,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               const SizedBox(height: 8),
               const Text(
                 'Note: Estimated Net Return = Gross Value - Transport - Other Costs. It represents estimated proceeds, not guaranteed profit.',
-                style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+                style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    fontStyle: FontStyle.italic),
               ),
             ],
           ],
@@ -1166,7 +1813,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary)),
           Text(
             value,
             style: TextStyle(
@@ -1184,7 +1833,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   Widget _buildLogisticsCard(DealModel deal) {
     return Card(
       elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.paddingMedium),
         child: Column(
@@ -1193,16 +1843,22 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Logistics & Locations', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                const Text('Logistics & Locations',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     deal.logisticsStatus.replaceAll('_', ' '),
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade700),
                   ),
                 ),
               ],
@@ -1211,11 +1867,15 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             if (deal.distanceKm != null && deal.distanceKm! > 0) ...[
               Row(
                 children: [
-                  const Icon(Icons.straighten, size: 16, color: AppColors.primary),
+                  const Icon(Icons.straighten,
+                      size: 16, color: AppColors.primary),
                   const SizedBox(width: 6),
                   Text(
                     'Direct Distance: ${deal.distanceKm!.toStringAsFixed(1)} km',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: AppColors.primary),
                   ),
                 ],
               ),
@@ -1225,7 +1885,11 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             // Pickup Location
             _buildLocationItem(
               title: 'Pickup Location (Farmer)',
-              address: deal.pickupAddress.isNotEmpty ? deal.pickupAddress : 'Farmer farm location',
+              address: deal.pickupAddress.isNotEmpty
+                  ? deal.pickupAddress
+                  : (deal.farmerLocation.isNotEmpty
+                      ? deal.farmerLocation
+                      : 'Farmer farm location'),
               lat: deal.pickupLat,
               lng: deal.pickupLng,
               mapsUrl: deal.pickupMapsUrl,
@@ -1236,7 +1900,11 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             // Delivery Location
             _buildLocationItem(
               title: 'Delivery Location (Buyer)',
-              address: deal.deliveryAddress.isNotEmpty ? deal.deliveryAddress : 'Buyer warehouse / delivery point',
+              address: deal.deliveryAddress.isNotEmpty
+                  ? deal.deliveryAddress
+                  : (deal.buyerLocation.isNotEmpty
+                      ? deal.buyerLocation
+                      : 'Buyer warehouse / delivery point'),
               lat: deal.deliveryLat,
               lng: deal.deliveryLng,
               mapsUrl: deal.deliveryMapsUrl,
@@ -1254,20 +1922,25 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.local_shipping_outlined, size: 20, color: AppColors.textSecondary),
+                  const Icon(Icons.local_shipping_outlined,
+                      size: 20, color: AppColors.textSecondary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          deal.transportRequired ? deal.transportType : 'No transport required (Direct handover)',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          deal.transportRequired
+                              ? deal.transportType
+                              : 'No transport required (Direct handover)',
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                         if (deal.deliveryDate != null)
                           Text(
                             'Target Delivery: ${DateFormat('dd MMM yyyy').format(deal.deliveryDate!)}',
-                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            style: const TextStyle(
+                                fontSize: 11, color: AppColors.textSecondary),
                           ),
                       ],
                     ),
@@ -1298,36 +1971,47 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-              Text(address, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary)),
+              Text(address,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w500)),
               if (lat != null && lng != null && lat != 0 && lng != 0) ...[
                 const SizedBox(height: 2),
                 Text(
                   'GPS: ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary),
                 ),
               ],
             ],
           ),
         ),
         TextButton.icon(
-          style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+          style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
           icon: const Icon(Icons.map, size: 16),
           label: const Text('Maps', style: TextStyle(fontSize: 12)),
-          onPressed: () => _openGoogleMaps(mapsUrl, lat, lng),
+          onPressed: () => _openGoogleMaps(mapsUrl, lat, lng,
+              address: address, label: title),
         ),
       ],
     );
   }
 
   // EXTERNAL PAYMENT STATUS CARD (PHASE 10)
-  Widget _buildPaymentStatusCard(DealModel deal, bool isFarmer, String currentUserId) {
+  Widget _buildPaymentStatusCard(
+      DealModel deal, bool isFarmer, String currentUserId) {
     final pColor = _getPaymentStatusColor(deal.paymentStatus);
     final bool isReporter = deal.paymentReportedBy == currentUserId;
 
     return Card(
       elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.paddingMedium),
         child: Column(
@@ -1336,9 +2020,12 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Payment Status', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                const Text('Payment Status',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: pColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -1346,7 +2033,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   ),
                   child: Text(
                     deal.paymentStatus.replaceAll('_', ' '),
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: pColor),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: pColor),
                   ),
                 ),
               ],
@@ -1363,7 +2053,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.shield_outlined, size: 18, color: Color(0xFF64748B)),
+                  Icon(Icons.shield_outlined,
+                      size: 18, color: Color(0xFF64748B)),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1386,7 +2077,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white),
                   icon: const Icon(Icons.send_rounded, size: 18),
                   label: const Text('Report Payment Made'),
                   onPressed: _isProcessing ? null : _handleReportPayment,
@@ -1405,25 +2098,32 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
+                        Icon(Icons.info_outline,
+                            size: 18, color: Colors.blue.shade700),
                         const SizedBox(width: 8),
                         Text(
                           isReporter
                               ? 'You reported payment.'
                               : '${deal.paymentReportedByRole ?? 'Counterparty'} reported payment was made.',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade900),
                         ),
                       ],
                     ),
                     if (deal.paymentReportedNotes.isNotEmpty) ...[
                       const SizedBox(height: 4),
-                      Text('Note: ${deal.paymentReportedNotes}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text('Note: ${deal.paymentReportedNotes}',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary)),
                     ],
                     if (deal.paymentReportedAt != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         'Reported: ${DateFormat('dd MMM, hh:mm a').format(deal.paymentReportedAt!)}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.textSecondary),
                       ),
                     ],
                   ],
@@ -1435,14 +2135,18 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               if (!isReporter) ...[
                 const Text(
                   '⚠️ Please check your bank account / cash externally before confirming receipt.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFFD97706), fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFD97706),
+                      fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(foregroundColor: AppColors.error),
+                        style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.error),
                         onPressed: _isProcessing ? null : _handleDisputePayment,
                         child: const Text('Report Issue'),
                       ),
@@ -1451,7 +2155,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     Expanded(
                       flex: 2,
                       child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            foregroundColor: Colors.white),
                         icon: const Icon(Icons.check_circle_outline, size: 18),
                         label: const Text('Confirm Receipt'),
                         onPressed: _isProcessing ? null : _handleConfirmPayment,
@@ -1462,7 +2168,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ] else ...[
                 const Text(
                   'Waiting for the receiving party to externally verify their account and confirm receipt.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontStyle: FontStyle.italic),
                 ),
               ],
             ] else if (deal.isPaymentConfirmed) ...[
@@ -1475,7 +2184,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle, color: Colors.green.shade700, size: 22),
+                    Icon(Icons.check_circle,
+                        color: Colors.green.shade700, size: 22),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -1483,12 +2193,16 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                         children: [
                           Text(
                             'Payment Confirmed by Both Parties',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.green.shade900),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Colors.green.shade900),
                           ),
                           if (deal.paymentConfirmedAt != null)
                             Text(
                               'Confirmed on ${DateFormat('dd MMM yyyy, hh:mm a').format(deal.paymentConfirmedAt!)}',
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                  fontSize: 11, color: AppColors.textSecondary),
                             ),
                         ],
                       ),
@@ -1509,22 +2223,29 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 20),
+                        Icon(Icons.warning_amber_rounded,
+                            color: Colors.red.shade700, size: 20),
                         const SizedBox(width: 8),
                         Text(
                           'Payment Dispute Reported',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red.shade900),
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.red.shade900),
                         ),
                       ],
                     ),
                     if (deal.paymentDisputeReason.isNotEmpty) ...[
                       const SizedBox(height: 6),
-                      Text('Reason: ${deal.paymentDisputeReason}', style: const TextStyle(fontSize: 12, color: AppColors.error)),
+                      Text('Reason: ${deal.paymentDisputeReason}',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.error)),
                     ],
                     const SizedBox(height: 6),
                     const Text(
                       'Please communicate directly with the counterparty to settle the payment discrepancy.',
-                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      style: TextStyle(
+                          fontSize: 11, color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -1542,7 +2263,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
     return Card(
       elevation: AppConstants.cardElevation,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.paddingMedium),
         child: Column(
@@ -1554,7 +2276,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 const SizedBox(width: 8),
                 Text(
                   isFarmer ? 'Rate Buyer Experience' : 'Rate Farmer Experience',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -1574,7 +2297,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     Expanded(
                       child: Text(
                         'You have submitted your rating and feedback for this deal. Thank you!',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF92400E)),
                       ),
                     ),
                   ],
@@ -1597,7 +2323,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                         color: const Color(0xFFD97706),
                         size: 32,
                       ),
-                      onPressed: _isSubmittingRating ? null : () => setState(() => _userRating = starVal),
+                      onPressed: _isSubmittingRating
+                          ? null
+                          : () => setState(() => _userRating = starVal),
                     );
                   }),
                 ),
@@ -1605,7 +2333,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               Center(
                 child: Text(
                   '${_userRating.toInt()} / 5 Stars',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1615,7 +2344,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 maxLength: 500,
                 decoration: const InputDecoration(
                   labelText: 'Feedback / Comment (Optional)',
-                  hintText: 'e.g. Prompt payment, polite communication and seamless handover.',
+                  hintText:
+                      'e.g. Prompt payment, polite communication and seamless handover.',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -1623,11 +2353,18 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD97706),
+                      foregroundColor: Colors.white),
                   onPressed: _isSubmittingRating ? null : _handleSubmitRating,
                   child: _isSubmittingRating
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Submit Rating & Feedback', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('Submit Rating & Feedback',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -1643,7 +2380,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       return const SizedBox.shrink();
     }
 
-    final isAgreementStage = deal.isAgreementPending || deal.isWaitingForBuyer || deal.isWaitingForFarmer;
+    final isAgreementStage = deal.isAgreementPending ||
+        deal.isWaitingForBuyer ||
+        deal.isWaitingForFarmer;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1654,34 +2393,43 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius)),
             ),
             icon: const Icon(Icons.gavel),
             label: Text(
-              ((isFarmer && deal.farmerAccepted) || (!isFarmer && deal.buyerAccepted))
+              ((isFarmer && deal.farmerAccepted) ||
+                      (!isFarmer && deal.buyerAccepted))
                   ? 'View Agreement (Waiting Counterparty)'
                   : 'Review & Accept Official Agreement',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             onPressed: () async {
-              await context.push(AppConstants.routeDealAgreement, extra: deal.id);
+              await context.push(AppConstants.routeDealAgreement,
+                  extra: deal.id);
               _fetchDeal();
             },
           ),
           const SizedBox(height: 10),
         ] else if (!deal.isDelivered) ...[
           // Intermediate status progress buttons
-          if (deal.status == 'CONFIRMED' || deal.status == 'DEAL_CONFIRMED') ...[
+          if (deal.status == 'CONFIRMED' ||
+              deal.status == 'DEAL_CONFIRMED') ...[
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD97706),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+                shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.borderRadius)),
               ),
               icon: const Icon(Icons.inventory_2_outlined),
-              label: const Text('Update Status: PREPARING HARVEST', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              onPressed: _isProcessing ? null : () => _handleUpdateStatus('PREPARING'),
+              label: const Text('Update Status: PREPARING HARVEST',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              onPressed:
+                  _isProcessing ? null : () => _handleUpdateStatus('PREPARING'),
             ),
             const SizedBox(height: 10),
           ] else if (deal.status == 'PREPARING') ...[
@@ -1690,11 +2438,16 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 backgroundColor: const Color(0xFFD97706),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+                shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.borderRadius)),
               ),
               icon: const Icon(Icons.check_box_outlined),
-              label: const Text('Update Status: READY FOR PICKUP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              onPressed: _isProcessing ? null : () => _handleUpdateStatus('READY_FOR_PICKUP'),
+              label: const Text('Update Status: READY FOR PICKUP',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              onPressed: _isProcessing
+                  ? null
+                  : () => _handleUpdateStatus('READY_FOR_PICKUP'),
             ),
             const SizedBox(height: 10),
           ] else if (deal.status == 'READY_FOR_PICKUP') ...[
@@ -1703,11 +2456,16 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 backgroundColor: const Color(0xFF7C3AED),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+                shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.borderRadius)),
               ),
               icon: const Icon(Icons.local_shipping_outlined),
-              label: const Text('Update Status: IN TRANSIT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              onPressed: _isProcessing ? null : () => _handleUpdateStatus('IN_TRANSIT'),
+              label: const Text('Update Status: IN TRANSIT',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              onPressed: _isProcessing
+                  ? null
+                  : () => _handleUpdateStatus('IN_TRANSIT'),
             ),
             const SizedBox(height: 10),
           ],
@@ -1716,10 +2474,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius)),
             ),
             icon: const Icon(Icons.done_all),
-            label: const Text('Mark Goods Delivered', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            label: const Text('Mark Goods Delivered',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             onPressed: _isProcessing ? null : _handleMarkDelivered,
           ),
           const SizedBox(height: 10),
@@ -1729,7 +2490,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             foregroundColor: AppColors.error,
             padding: const EdgeInsets.symmetric(vertical: 12),
             side: const BorderSide(color: AppColors.error),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
           ),
           icon: const Icon(Icons.cancel_outlined),
           label: const Text('Cancel Deal'),

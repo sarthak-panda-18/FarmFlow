@@ -1,6 +1,9 @@
 const BuyerRequirement = require('../models/BuyerRequirement');
 const Crop = require('../models/Crop');
 const Notification = require('../models/Notification');
+const { isValidCoordinates, buildGeoJsonPoint } = require('../utils/geoUtils');
+const { getMarketCoordinates } = require('../utils/districtCoordinates');
+const { sanitizeAddress, formatAddressParts } = require('../utils/locationResolver');
 
 /**
  * Helper to format requirement response
@@ -47,7 +50,12 @@ const createRequirement = async (req, res, next) => {
       district,
       market,
       location,
+      latitude,
+      longitude,
+      locationCoordinates,
       notes,
+      transportCost,
+      otherCosts,
     } = req.body;
 
     const cropIdentifier = commodity || cropName;
@@ -112,9 +120,10 @@ const createRequirement = async (req, res, next) => {
       });
     }
 
-    const locState = (state || '').trim();
-    const locDistrict = (district || '').trim();
-    const locGeneral = (location || market || district || '').trim();
+    const locState = sanitizeAddress(state);
+    const locDistrict = sanitizeAddress(district);
+    const locMarket = sanitizeAddress(market);
+    const locGeneral = sanitizeAddress(location) || formatAddressParts(locMarket, locDistrict, locState);
 
     if (!locState && !locDistrict && !locGeneral) {
       return res.status(400).json({
@@ -133,6 +142,36 @@ const createRequirement = async (req, res, next) => {
     // Securely associate buyerId from authenticated user token
     const buyerId = req.user.userId;
 
+    let reqGeoPoint = undefined;
+    if (isValidCoordinates(latitude, longitude)) {
+      reqGeoPoint = buildGeoJsonPoint(Number(longitude), Number(latitude));
+    } else if (
+      locationCoordinates &&
+      typeof locationCoordinates === 'object' &&
+      Array.isArray(locationCoordinates.coordinates) &&
+      locationCoordinates.coordinates.length === 2 &&
+      isValidCoordinates(locationCoordinates.coordinates[1], locationCoordinates.coordinates[0])
+    ) {
+      reqGeoPoint = {
+        type: 'Point',
+        coordinates: [Number(locationCoordinates.coordinates[0]), Number(locationCoordinates.coordinates[1])],
+      };
+    } else if (locState || locDistrict || locMarket) {
+      const coords = getMarketCoordinates(locState, locDistrict, locMarket);
+      if (coords && isValidCoordinates(coords.lat, coords.lng)) {
+        reqGeoPoint = buildGeoJsonPoint(coords.lng, coords.lat);
+      }
+    }
+
+    const numTransport =
+      transportCost !== undefined && transportCost !== null && !isNaN(parseFloat(transportCost)) && parseFloat(transportCost) >= 0
+        ? parseFloat(transportCost)
+        : null;
+    const numOther =
+      otherCosts !== undefined && otherCosts !== null && !isNaN(parseFloat(otherCosts)) && parseFloat(otherCosts) >= 0
+        ? parseFloat(otherCosts)
+        : 0;
+
     const requirement = await BuyerRequirement.create({
       buyerId,
       commodity: cropIdentifier.trim(),
@@ -145,9 +184,12 @@ const createRequirement = async (req, res, next) => {
       requiredByDate: parsedDate,
       state: locState || locDistrict || locGeneral || 'National',
       district: locDistrict || locGeneral || locState || 'National',
-      market: (market || '').trim(),
+      market: locMarket,
       location: locGeneral || locDistrict || locState,
+      locationCoordinates: reqGeoPoint,
       notes: (notes || '').trim(),
+      transportCost: numTransport,
+      otherCosts: numOther,
       status: 'ACTIVE',
     });
 

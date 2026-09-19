@@ -9,7 +9,8 @@ class FarmerVerificationScreen extends StatefulWidget {
   const FarmerVerificationScreen({super.key});
 
   @override
-  State<FarmerVerificationScreen> createState() => _FarmerVerificationScreenState();
+  State<FarmerVerificationScreen> createState() =>
+      _FarmerVerificationScreenState();
 }
 
 class _FarmerVerificationScreenState extends State<FarmerVerificationScreen> {
@@ -60,7 +61,8 @@ class _FarmerVerificationScreenState extends State<FarmerVerificationScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Farmer verification information submitted successfully! Status: PENDING'),
+          content: Text(
+              'Farmer verification information submitted successfully! Status: PENDING'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -99,7 +101,8 @@ class _FarmerVerificationScreenState extends State<FarmerVerificationScreen> {
                   child: CircleAvatar(
                     radius: 36,
                     backgroundColor: Color(0xFFDCFCE7),
-                    child: Icon(Icons.agriculture, size: 40, color: AppColors.primary),
+                    child: Icon(Icons.agriculture,
+                        size: 40, color: AppColors.primary),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -130,7 +133,8 @@ class _FarmerVerificationScreenState extends State<FarmerVerificationScreen> {
                           ? const Color(0xFFFEF2F2)
                           : const Color(0xFFFEF3C7),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                    borderRadius:
+                        BorderRadius.circular(AppConstants.borderRadius),
                     side: BorderSide(
                       color: status == 'VERIFIED'
                           ? AppColors.success
@@ -162,7 +166,8 @@ class _FarmerVerificationScreenState extends State<FarmerVerificationScreen> {
                             children: [
                               Text(
                                 'Current Status: $status',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                               Text(
                                 status == 'VERIFIED'
@@ -170,7 +175,9 @@ class _FarmerVerificationScreenState extends State<FarmerVerificationScreen> {
                                     : status == 'REJECTED'
                                         ? 'Verification was rejected. Please re-check your details and resubmit.'
                                         : 'Your submission is pending review by marketplace administrators.',
-                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary),
                               ),
                             ],
                           ),
@@ -187,12 +194,14 @@ class _FarmerVerificationScreenState extends State<FarmerVerificationScreen> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadius),
                       border: Border.all(color: AppColors.error),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          color: AppColors.error, fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -229,7 +238,8 @@ class _FarmerVerificationScreenState extends State<FarmerVerificationScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadius),
                     ),
                   ),
                   child: _isLoading
@@ -242,8 +252,11 @@ class _FarmerVerificationScreenState extends State<FarmerVerificationScreen> {
                           ),
                         )
                       : Text(
-                          status == 'PENDING' ? 'Update Verification Info' : 'Submit Farmer Verification',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          status == 'PENDING'
+                              ? 'Update Verification Info'
+                              : 'Submit Farmer Verification',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                 ),
                 const SizedBox(height: 16),

@@ -20,27 +20,28 @@ The **Intelligent Farm-to-Market Decision & Buyer Recommendation Platform** brid
 * **Farmer & Buyer Dashboards**: Role-tailored mobile experience for listing crops, registering buyer demand, and reviewing recommendations.
 
 ## 4. Architecture
-The platform is built on a modern decoupled full-stack mobile architecture:
+The platform is built on a modern decoupled full-stack mobile + ML microservice architecture:
 ```
 ┌──────────────────────────────────────────────┐
 │           Flutter Mobile App (Client)        │
-│   (Material 3, Provider, Dio, GoRouter)       │
+│   (Material 3, Provider, Dio, GoRouter)      │
 └──────────────────────┬───────────────────────┘
-                       │ HTTP / REST API (JSON)
+                       │ HTTP / REST API (JSON) :5000
 ┌──────────────────────▼───────────────────────┐
 │           Node.js + Express Server           │
 │     (Auth Middleware, JWT, Controllers)      │
-└──────────────────────┬───────────────────────┘
-                       │ Mongoose Driver
-┌──────────────────────▼───────────────────────┐
-│            MongoDB Database                  │
-│    (Users, Crops, Requirements, Prices)      │
-└──────────────────────────────────────────────┘
+└──────────┬───────────────────────────┬───────┘
+           │ Mongoose Driver           │ HTTP :8000
+┌──────────▼──────────┐     ┌──────────▼────────────────────────┐
+│   MongoDB Database  │     │  Python FastAPI ML Service (:8000)│
+│ (Users, Crops, etc) │     │ (CatBoost Regressor: .pkl model)  │
+└─────────────────────┘     └───────────────────────────────────┘
 ```
 
 ## 5. Technology Stack
 * **Mobile Application**: Flutter, Dart, Material 3, Provider, Dio, GoRouter, flutter_secure_storage.
 * **Backend Application**: Node.js, Express.js (JavaScript, async/await).
+* **ML Microservice**: Python 3.12, FastAPI, Uvicorn, CatBoost, Scikit-learn, Pandas, NumPy, Joblib, Pydantic.
 * **Database**: MongoDB, Mongoose ODM.
 * **Security & Tools**: JWT, bcryptjs, Helmet, CORS, Morgan, dotenv.
 
@@ -166,34 +167,84 @@ farm-to-market/
    npm run dev
    ```
 
-## 9. MongoDB Setup
+## 9. Python ML Service Setup
+1. Navigate to `ml_service` directory:
+   ```bash
+   cd ml_service
+   ```
+2. Create virtual environment & activate:
+   ```bash
+   python -m venv .venv
+   # Windows PowerShell:
+   .\.venv\Scripts\Activate.ps1
+   # Linux/macOS:
+   source .venv/bin/activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Start FastAPI service:
+   ```bash
+   uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
+
+## 10. MongoDB Setup
 Ensure MongoDB is running locally on port `27017` or update `MONGODB_URI` in `server/.env` to point to a MongoDB Atlas cluster URI.
 ```bash
 # Example local MongoDB URI
 MONGODB_URI=mongodb://localhost:27017/farm-to-market
 ```
 
-## 10. Environment Variables
-### Backend (`server/.env.example`)
+## 11. Environment Variables
+### Backend (`server/.env`)
 * `PORT`: Server listening port (default `5000`).
 * `MONGODB_URI`: MongoDB connection string.
+* `ML_SERVICE_URL`: URL to Python ML service (`http://localhost:8000`).
 * `JWT_SECRET`: Secret key for JWT signing.
 * `NODE_ENV`: Application environment (`development` / `production`).
 
-### Mobile (`mobile/.env.example`)
-* `API_BASE_URL`: Base URL for Express REST API endpoints (e.g. `http://localhost:5000/api` or `http://10.0.2.2:5000/api` for Android Emulator).
+### Mobile (`mobile/.env`)
+* `API_BASE_URL`: Base URL for Express REST API endpoints (`http://localhost:5000/api` or `http://10.0.2.2:5000/api` for Android Emulator).
 
-## 11. API Health Check
-Test backend and database status:
+## 12. API Health Checks & ML Endpoints
+### Backend Health:
 ```bash
 GET http://localhost:5000/api/health
+```
+
+### ML Service Health:
+```bash
+GET http://localhost:8000/health
+```
+
+### ML Price Prediction Endpoint (via Backend):
+```bash
+GET http://localhost:5000/api/markets/prediction?commodity=Tomato&district=Krishna&state=Andhra%20Pradesh
 ```
 Response:
 ```json
 {
   "success": true,
-  "message": "Farm-to-Market API is running",
-  "database": "connected"
+  "available": true,
+  "data": {
+    "commodity": "Tomato",
+    "state": "Andhra Pradesh",
+    "district": "Krishna",
+    "market": "Krishna",
+    "variety": "Other",
+    "grade": "FAQ",
+    "targetDate": "2026-09-19",
+    "actualPrice": 4200,
+    "actualPriceFormatted": "₹4,200 / Quintal",
+    "predictedPrice": 4539.69,
+    "predictedPriceFormatted": "₹4,539.69 / Quintal",
+    "unit": "Quintal",
+    "predictedChangePercent": 8.09,
+    "trend": "INCREASING",
+    "isMlAvailable": true,
+    "modelVersion": "agri_price_model_v1"
+  }
 }
 ```
 

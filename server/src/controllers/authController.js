@@ -11,10 +11,21 @@ const {
   sendSms,
 } = require('../utils/otpService');
 
+const { isValidCoordinates, buildGeoJsonPoint } = require('../utils/geoUtils');
+const { getMarketCoordinates } = require('../utils/districtCoordinates');
+const { sanitizeAddress } = require('../utils/locationResolver');
+
 /**
  * Format standard user object payload for auth responses
  */
 const formatUserResponse = (user) => {
+  let lat = null;
+  let lng = null;
+  if (user.location && Array.isArray(user.location.coordinates) && user.location.coordinates.length === 2) {
+    lng = user.location.coordinates[0];
+    lat = user.location.coordinates[1];
+  }
+
   return {
     id: user._id.toString(),
     name: user.name,
@@ -29,6 +40,13 @@ const formatUserResponse = (user) => {
     businessName: user.businessName || '',
     businessType: user.businessType || '',
     verificationDocument: user.verificationDocument || '',
+    address: user.address || '',
+    city: user.city || '',
+    district: user.district || '',
+    state: user.state || '',
+    latitude: lat,
+    longitude: lng,
+    location: user.location || undefined,
   };
 };
 
@@ -48,7 +66,25 @@ const register = async (req, res, next) => {
   }
 
   try {
-    const { name, email, phone, password, role, farmerId, gstin, GSTIN } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      password,
+      role,
+      farmerId,
+      gstin,
+      GSTIN,
+      businessName,
+      businessType,
+      address,
+      city,
+      district,
+      state,
+      latitude,
+      longitude,
+      location,
+    } = req.body;
 
     if (!name || !phone || !password || !role) {
       return res.status(400).json({
@@ -127,6 +163,28 @@ const register = async (req, res, next) => {
 
     const passwordHash = await hashPassword(password);
 
+    // Resolve location & coordinates if provided
+    let userGeoPoint = undefined;
+    if (isValidCoordinates(latitude, longitude)) {
+      userGeoPoint = buildGeoJsonPoint(Number(longitude), Number(latitude));
+    } else if (
+      location &&
+      typeof location === 'object' &&
+      Array.isArray(location.coordinates) &&
+      location.coordinates.length === 2 &&
+      isValidCoordinates(location.coordinates[1], location.coordinates[0])
+    ) {
+      userGeoPoint = {
+        type: 'Point',
+        coordinates: [Number(location.coordinates[0]), Number(location.coordinates[1])],
+      };
+    } else if (state || district || city) {
+      const coords = getMarketCoordinates(state, district, city);
+      if (coords && isValidCoordinates(coords.lat, coords.lng)) {
+        userGeoPoint = buildGeoJsonPoint(coords.lng, coords.lat);
+      }
+    }
+
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail || undefined,
@@ -138,6 +196,13 @@ const register = async (req, res, next) => {
       verificationType: normalizedRole,
       verificationId: cleanFarmerId || cleanGstin || undefined,
       gstin: cleanGstin || undefined,
+      businessName: businessName ? String(businessName).trim() : undefined,
+      businessType: businessType ? String(businessType).trim() : undefined,
+      address: address ? sanitizeAddress(address) : '',
+      city: city ? sanitizeAddress(city) : '',
+      district: district ? sanitizeAddress(district) : '',
+      state: state ? sanitizeAddress(state) : '',
+      location: userGeoPoint,
     });
 
     const token = generateToken({

@@ -25,7 +25,8 @@ class AuthProvider extends ChangeNotifier {
 
   AuthStatus get status => _status;
   bool get isLoading => _status == AuthStatus.loading;
-  bool get isAuthenticated => _status == AuthStatus.authenticated && _token != null;
+  bool get isAuthenticated =>
+      _status == AuthStatus.authenticated && _token != null;
   Map<String, dynamic>? get user => _user;
   String? get userId => _user?['id'] ?? _user?['_id'];
   String? get userName => _user?['name'];
@@ -33,6 +34,10 @@ class AuthProvider extends ChangeNotifier {
   String? get userPhone => _user?['phone'];
   String? get userRole => _user?['role'];
   String? get userGstin => _user?['gstin'];
+  String? get userAddress => _user?['address'];
+  String? get userDistrict => _user?['district'];
+  String? get userCity => _user?['city'];
+  String? get userState => _user?['state'];
   String? get errorMessage => _errorMessage;
 
   bool get isPhoneVerified => _user?['phoneVerified'] == true;
@@ -42,8 +47,10 @@ class AuthProvider extends ChangeNotifier {
   String? get businessName => _user?['businessName'];
   String? get businessType => _user?['businessType'];
 
-  bool get isFullyVerified => isPhoneVerified && verificationStatus == 'VERIFIED';
-  bool get isVerificationPending => isPhoneVerified && verificationStatus == 'PENDING';
+  bool get isFullyVerified =>
+      isPhoneVerified && verificationStatus == 'VERIFIED';
+  bool get isVerificationPending =>
+      isPhoneVerified && verificationStatus == 'PENDING';
   bool get isVerificationRejected => verificationStatus == 'REJECTED';
 
   ApiService get apiService => _apiService;
@@ -101,7 +108,8 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiService.login(identifier.trim(), password.trim());
+      final response =
+          await _apiService.login(identifier.trim(), password.trim());
       final data = response.data['data'];
 
       _token = data['token'];
@@ -199,9 +207,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Submit Farmer verification details
-  Future<void> submitFarmerVerification(String farmerId, {String? supportingDocument}) async {
+  Future<void> submitFarmerVerification(String farmerId,
+      {String? supportingDocument}) async {
     _errorMessage = null;
-    final res = await _apiService.submitFarmerVerification(farmerId, supportingDocument: supportingDocument);
+    final res = await _apiService.submitFarmerVerification(farmerId,
+        supportingDocument: supportingDocument);
     if (res.data != null && res.data['success'] == true) {
       await refreshUserProfile();
     }

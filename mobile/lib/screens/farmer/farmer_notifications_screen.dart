@@ -11,7 +11,8 @@ class FarmerNotificationsScreen extends StatefulWidget {
   const FarmerNotificationsScreen({super.key});
 
   @override
-  State<FarmerNotificationsScreen> createState() => _FarmerNotificationsScreenState();
+  State<FarmerNotificationsScreen> createState() =>
+      _FarmerNotificationsScreenState();
 }
 
 class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
@@ -39,12 +40,14 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
       if (mounted && res.data != null && res.data['success'] == true) {
         final List list = res.data['data'] ?? [];
         setState(() {
-          _notifications = list.map((item) => NotificationModel.fromJson(item)).toList();
+          _notifications =
+              list.map((item) => NotificationModel.fromJson(item)).toList();
           _isLoading = false;
         });
       } else {
         setState(() {
-          _errorMessage = res.data?['message'] ?? 'Unable to load notifications.';
+          _errorMessage =
+              res.data?['message'] ?? 'Unable to load notifications.';
           _isLoading = false;
         });
       }
@@ -100,7 +103,9 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
       }
     } else if (item.type.toUpperCase() == 'MATCH_FOUND') {
       if (mounted) {
-        await context.push(isBuyer ? AppConstants.routeBuyerMatches : AppConstants.routeFarmerMatches);
+        await context.push(isBuyer
+            ? AppConstants.routeBuyerMatches
+            : AppConstants.routeFarmerMatches);
         _fetchNotifications();
       }
     } else if (item.dealId != null && item.dealId!.isNotEmpty && mounted) {
@@ -111,7 +116,9 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
       if (refreshed == true || mounted) {
         _fetchNotifications();
       }
-    } else if (item.opportunityId != null && item.opportunityId!.isNotEmpty && mounted) {
+    } else if (item.opportunityId != null &&
+        item.opportunityId!.isNotEmpty &&
+        mounted) {
       final refreshed = await context.push(
         AppConstants.routeOpportunityDetail,
         extra: item.opportunityId,
@@ -213,7 +220,8 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(unreadCount > 0 ? 'Notifications ($unreadCount)' : 'Notifications'),
+        title: Text(
+            unreadCount > 0 ? 'Notifications ($unreadCount)' : 'Notifications'),
         backgroundColor: themeColor,
         foregroundColor: Colors.white,
         actions: [
@@ -224,12 +232,16 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
                   ? const SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2),
                     )
                   : const Icon(Icons.done_all, color: Colors.white, size: 18),
               label: const Text(
                 'Mark All Read',
-                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold),
               ),
             ),
           IconButton(
@@ -266,7 +278,8 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
                 onPressed: _fetchNotifications,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
-                style: ElevatedButton.styleFrom(backgroundColor: themeColor, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: themeColor, foregroundColor: Colors.white),
               ),
             ],
           ),
@@ -281,7 +294,8 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.notifications_none, size: 64, color: AppColors.textMuted),
+              const Icon(Icons.notifications_none,
+                  size: 64, color: AppColors.textMuted),
               const SizedBox(height: 16),
               Text(
                 'No notifications yet.',
@@ -317,7 +331,9 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.borderRadius),
             side: BorderSide(
-              color: item.isUnread ? AppColors.primary.withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
+              color: item.isUnread
+                  ? AppColors.primary.withValues(alpha: 0.3)
+                  : const Color(0xFFE2E8F0),
               width: item.isUnread ? 1.5 : 1,
             ),
           ),
@@ -354,7 +370,9 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
                               child: Text(
                                 item.title,
                                 style: TextStyle(
-                                  fontWeight: item.isUnread ? FontWeight.bold : FontWeight.w600,
+                                  fontWeight: item.isUnread
+                                      ? FontWeight.bold
+                                      : FontWeight.w600,
                                   fontSize: 14,
                                   color: AppColors.textPrimary,
                                 ),
@@ -362,7 +380,8 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
                             ),
                             Text(
                               item.timeAgo,
-                              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                              style: const TextStyle(
+                                  fontSize: 11, color: AppColors.textMuted),
                             ),
                           ],
                         ),
@@ -371,11 +390,14 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
                           item.message,
                           style: TextStyle(
                             fontSize: 13,
-                            color: item.isUnread ? AppColors.textPrimary : AppColors.textSecondary,
+                            color: item.isUnread
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
                             height: 1.3,
                           ),
                         ),
-                        if (item.opportunityId != null && item.opportunityId!.isNotEmpty) ...[
+                        if (item.opportunityId != null &&
+                            item.opportunityId!.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -388,7 +410,8 @@ class _FarmerNotificationsScreenState extends State<FarmerNotificationsScreen> {
                                 ),
                               ),
                               const SizedBox(width: 2),
-                              Icon(Icons.arrow_forward, size: 12, color: typeColor),
+                              Icon(Icons.arrow_forward,
+                                  size: 12, color: typeColor),
                             ],
                           ),
                         ],

@@ -9,7 +9,8 @@ class FarmerOpportunitiesScreen extends StatefulWidget {
   const FarmerOpportunitiesScreen({super.key});
 
   @override
-  State<FarmerOpportunitiesScreen> createState() => _FarmerOpportunitiesScreenState();
+  State<FarmerOpportunitiesScreen> createState() =>
+      _FarmerOpportunitiesScreenState();
 }
 
 class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
@@ -20,7 +21,14 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
   List<OpportunityModel> _opportunities = [];
   String _selectedFilter = 'ALL';
 
-  final List<String> _filters = ['ALL', 'PENDING', 'ACCEPTED', 'COMPLETED', 'REJECTED', 'CANCELLED'];
+  final List<String> _filters = [
+    'ALL',
+    'PENDING',
+    'ACCEPTED',
+    'COMPLETED',
+    'REJECTED',
+    'CANCELLED'
+  ];
 
   @override
   void initState() {
@@ -44,12 +52,14 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
       if (mounted && res.data != null && res.data['success'] == true) {
         final List list = res.data['data'] ?? [];
         setState(() {
-          _opportunities = list.map((item) => OpportunityModel.fromJson(item)).toList();
+          _opportunities =
+              list.map((item) => OpportunityModel.fromJson(item)).toList();
           _isLoading = false;
         });
       } else {
         setState(() {
-          _errorMessage = res.data?['message'] ?? 'Unable to load opportunities.';
+          _errorMessage =
+              res.data?['message'] ?? 'Unable to load opportunities.';
           _isLoading = false;
         });
       }
@@ -111,7 +121,8 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
           IconButton(
             icon: const Icon(Icons.star_outline),
             tooltip: 'Buyer Recommendations',
-            onPressed: () => context.push(AppConstants.routeFarmerRecommendations),
+            onPressed: () =>
+                context.push(AppConstants.routeFarmerRecommendations),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -138,8 +149,11 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
                         filter == 'ALL' ? 'All Opportunities' : filter,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
                         ),
                       ),
                       selected: isSelected,
@@ -196,13 +210,17 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
             children: [
               const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
-              Text(_errorMessage!, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+              Text(_errorMessage!,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: _fetchOpportunities,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white),
               ),
             ],
           ),
@@ -217,7 +235,8 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.handshake_outlined, size: 64, color: AppColors.textMuted),
+              const Icon(Icons.handshake_outlined,
+                  size: 64, color: AppColors.textMuted),
               const SizedBox(height: 16),
               Text(
                 _selectedFilter == 'ALL'
@@ -265,23 +284,29 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
                     children: [
                       Text(
                         '3+ Buyer Opportunities Available',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF166534)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Color(0xFF166534)),
                       ),
                       Text(
                         'Automated Net Value recommendation ready',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF166534)),
+                        style:
+                            TextStyle(fontSize: 11, color: Color(0xFF166534)),
                       ),
                     ],
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () => context.push(AppConstants.routeFarmerRecommendations),
+                  onPressed: () =>
+                      context.push(AppConstants.routeFarmerRecommendations),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF16A34A),
                     foregroundColor: Colors.white,
                     visualDensity: VisualDensity.compact,
                   ),
-                  child: const Text('View Best', style: TextStyle(fontSize: 12)),
+                  child:
+                      const Text('View Best', style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),
@@ -318,12 +343,16 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
                       Expanded(
                         child: Row(
                           children: [
-                            const Icon(Icons.storefront, color: AppColors.secondary, size: 20),
+                            const Icon(Icons.storefront,
+                                color: AppColors.secondary, size: 20),
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
                                 item.buyerName,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.textPrimary,
                                     ),
@@ -334,7 +363,8 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: _getStatusBgColor(item.normalizedStatus),
                           borderRadius: BorderRadius.circular(12),
@@ -357,20 +387,29 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: isInitiator ? const Color(0xFFEFF6FF) : const Color(0xFFF0FDF4),
+                          color: isInitiator
+                              ? const Color(0xFFEFF6FF)
+                              : const Color(0xFFF0FDF4),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: isInitiator ? const Color(0xFFBFDBFE) : const Color(0xFFBBF7D0),
+                            color: isInitiator
+                                ? const Color(0xFFBFDBFE)
+                                : const Color(0xFFBBF7D0),
                           ),
                         ),
                         child: Text(
-                          isInitiator ? 'Initiated by You' : 'Initiated by Buyer',
+                          isInitiator
+                              ? 'Initiated by You'
+                              : 'Initiated by Buyer',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: isInitiator ? const Color(0xFF1D4ED8) : const Color(0xFF15803D),
+                            color: isInitiator
+                                ? const Color(0xFF1D4ED8)
+                                : const Color(0xFF15803D),
                           ),
                         ),
                       ),
@@ -379,7 +418,8 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
                         Expanded(
                           child: Text(
                             '• ${item.buyerBusinessName}',
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                            style: const TextStyle(
+                                color: AppColors.textSecondary, fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -398,12 +438,14 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
                         children: [
                           Text(
                             'Crop: ${item.commodity}',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Quantity: ${item.quantity} ${item.quantityUnit}',
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                            style: const TextStyle(
+                                color: AppColors.textSecondary, fontSize: 12),
                           ),
                         ],
                       ),
@@ -412,7 +454,8 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
                         children: [
                           const Text(
                             'Offered Price',
-                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            style: TextStyle(
+                                fontSize: 11, color: AppColors.textSecondary),
                           ),
                           Text(
                             '₹${item.offeredPrice.toStringAsFixed(0)}',
@@ -436,11 +479,13 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
                       if (item.distanceKm != null)
                         Row(
                           children: [
-                            const Icon(Icons.near_me, size: 14, color: AppColors.primary),
+                            const Icon(Icons.near_me,
+                                size: 14, color: AppColors.primary),
                             const SizedBox(width: 4),
                             Text(
                               '${item.distanceKm!.toStringAsFixed(1)} km away',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppColors.textSecondary),
                             ),
                           ],
                         )
@@ -450,10 +495,14 @@ class _FarmerOpportunitiesScreenState extends State<FarmerOpportunitiesScreen> {
                         children: [
                           Text(
                             'View Details',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary),
                           ),
                           SizedBox(width: 2),
-                          Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                          Icon(Icons.chevron_right,
+                              size: 16, color: AppColors.primary),
                         ],
                       ),
                     ],

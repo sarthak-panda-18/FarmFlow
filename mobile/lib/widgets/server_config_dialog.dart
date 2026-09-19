@@ -15,7 +15,8 @@ class ServerConfigDialog extends StatefulWidget {
     this.onSaved,
   });
 
-  static Future<void> show(BuildContext context, ApiService apiService, {VoidCallback? onSaved}) {
+  static Future<void> show(BuildContext context, ApiService apiService,
+      {VoidCallback? onSaved}) {
     return showDialog(
       context: context,
       barrierDismissible: true,
@@ -86,7 +87,8 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
       setState(() {
         _testResult = {
           'success': false,
-          'message': 'No reachable backend found on USB (127.0.0.1), LAN (10.1.36.198), or Emulator (10.0.2.2). Ensure "npm run dev" is running on PC.',
+          'message':
+              'No reachable backend found on USB (127.0.0.1), LAN (10.1.36.198), or Emulator (10.0.2.2). Ensure "npm run dev" is running on PC.',
         };
       });
     }
@@ -124,7 +126,8 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
               color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.settings_ethernet, color: AppColors.primary, size: 24),
+            child: const Icon(Icons.settings_ethernet,
+                color: AppColors.primary, size: 24),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -154,12 +157,14 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
                 _buildPresetChip(
                   label: '⚡ USB (ADB Reverse)',
                   url: AppConfig.defaultUsbUrl,
-                  tooltip: 'Use when phone is connected via USB cable with adb reverse',
+                  tooltip:
+                      'Use when phone is connected via USB cable with adb reverse',
                 ),
                 _buildPresetChip(
                   label: '📶 Wi-Fi / LAN IP',
                   url: AppConfig.defaultLanUrl,
-                  tooltip: 'Use when phone and PC are on the same Wi-Fi / Hotspot',
+                  tooltip:
+                      'Use when phone and PC are on the same Wi-Fi / Hotspot',
                 ),
                 _buildPresetChip(
                   label: '💻 Emulator',
@@ -181,7 +186,8 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
                   icon: const Icon(Icons.clear, size: 18),
                   onPressed: () => _urlController.clear(),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
               style: const TextStyle(fontSize: 14, fontFamily: 'monospace'),
             ),
@@ -192,7 +198,9 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: (_isTesting || _isAutoDetecting) ? null : _runAutoDetect,
+                    onPressed: (_isTesting || _isAutoDetecting)
+                        ? null
+                        : _runAutoDetect,
                     icon: _isAutoDetecting
                         ? const SizedBox(
                             width: 14,
@@ -200,7 +208,8 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.radar, size: 16),
-                    label: const Text('Auto-Detect', style: TextStyle(fontSize: 12)),
+                    label: const Text('Auto-Detect',
+                        style: TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
@@ -211,7 +220,9 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: (_isTesting || _isAutoDetecting) ? null : () => _runConnectionTest(),
+                    onPressed: (_isTesting || _isAutoDetecting)
+                        ? null
+                        : () => _runConnectionTest(),
                     icon: _isTesting
                         ? const SizedBox(
                             width: 14,
@@ -222,7 +233,8 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
                             ),
                           )
                         : const Icon(Icons.network_ping, size: 16),
-                    label: const Text('Test Ping', style: TextStyle(fontSize: 12)),
+                    label:
+                        const Text('Test Ping', style: TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondary,
                       foregroundColor: Colors.white,
@@ -244,15 +256,21 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
                       : AppColors.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: _testResult!['success'] == true ? AppColors.success : AppColors.error,
+                    color: _testResult!['success'] == true
+                        ? AppColors.success
+                        : AppColors.error,
                   ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
-                      _testResult!['success'] == true ? Icons.check_circle : Icons.error,
-                      color: _testResult!['success'] == true ? AppColors.success : AppColors.error,
+                      _testResult!['success'] == true
+                          ? Icons.check_circle
+                          : Icons.error,
+                      color: _testResult!['success'] == true
+                          ? AppColors.success
+                          : AppColors.error,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -261,23 +279,29 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _testResult!['success'] == true ? 'Connected Successfully!' : 'Connection Failed',
+                            _testResult!['success'] == true
+                                ? 'Connected Successfully!'
+                                : 'Connection Failed',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
-                              color: _testResult!['success'] == true ? AppColors.success : AppColors.error,
+                              color: _testResult!['success'] == true
+                                  ? AppColors.success
+                                  : AppColors.error,
                             ),
                           ),
                           const SizedBox(height: 2),
                           if (_testResult!['latencyMs'] != null)
                             Text(
                               'Ping: ${_testResult!['latencyMs']}ms | Database: ${_testResult!['database']}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppColors.textSecondary),
                             ),
                           if (_testResult!['message'] != null)
                             Text(
                               _testResult!['message'].toString(),
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                  fontSize: 11, color: AppColors.textSecondary),
                             ),
                         ],
                       ),
@@ -329,7 +353,8 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
     return ActionChip(
       label: Text(label, style: const TextStyle(fontSize: 11)),
       tooltip: tooltip,
-      backgroundColor: isSelected ? AppColors.primary.withValues(alpha: 0.15) : null,
+      backgroundColor:
+          isSelected ? AppColors.primary.withValues(alpha: 0.15) : null,
       side: BorderSide(
         color: isSelected ? AppColors.primary : AppColors.border,
         width: isSelected ? 1.5 : 1.0,

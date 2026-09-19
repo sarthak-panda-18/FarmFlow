@@ -18,7 +18,6 @@ const dealSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Opportunity',
       required: [true, 'Opportunity ID is required'],
-      index: true,
     },
     farmerCropId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -111,7 +110,15 @@ const dealSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    farmerAgreementAccepted: {
+      type: Boolean,
+      default: false,
+    },
     buyerAccepted: {
+      type: Boolean,
+      default: false,
+    },
+    buyerAgreementAccepted: {
       type: Boolean,
       default: false,
     },
@@ -365,6 +372,18 @@ dealSchema.methods.calculateFinancials = function () {
 };
 
 dealSchema.pre('save', function (next) {
+  if (this.farmerAgreementAccepted !== undefined && this.farmerAccepted !== this.farmerAgreementAccepted) {
+    this.farmerAccepted = Boolean(this.farmerAgreementAccepted);
+  } else if (this.farmerAccepted !== undefined) {
+    this.farmerAgreementAccepted = Boolean(this.farmerAccepted);
+  }
+
+  if (this.buyerAgreementAccepted !== undefined && this.buyerAccepted !== this.buyerAgreementAccepted) {
+    this.buyerAccepted = Boolean(this.buyerAgreementAccepted);
+  } else if (this.buyerAccepted !== undefined) {
+    this.buyerAgreementAccepted = Boolean(this.buyerAccepted);
+  }
+
   this.calculateFinancials();
   next();
 });
